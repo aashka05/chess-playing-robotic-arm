@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# YOLO / Ultralytics Outputs
+runs/
+vision/outputs/
+
+# Dataset
+# (Keep this ignored if datasets are large)
+vision/data/
+
+# Trained Models
+vision/models/*.pt
+
+# Temporary Files
+*.tmp
+*.temp
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Build
+build/
+dist/
+*.egg-info/
