@@ -40,3 +40,5 @@ vision/models/*.pt
 build/
 dist/
 *.egg-info/
+yolo11s.pt
+*.pt
