@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <!-- Placeholder dimensions (meters) -->
+
+    <xacro:property name="base_length" value="0.0905"/>
+    <xacro:property name="base_width" value="0.0880"/>
+    <xacro:property name="base_height" value="0.0290"/>
+
+    <xacro:property name="shoulder_width" value="0.06"/>
+    <xacro:property name="shoulder_height" value="0.20"/>
+
+    <xacro:property name="upper_arm_length" value="0.18"/>
+    <xacro:property name="upper_arm_width" value="0.05"/>
+
+    <xacro:property name="forearm_length" value="0.18"/>
+    <xacro:property name="forearm_width" value="0.045"/>
+    <xacro:property name="forearm_height" value="0.05"/>
+
+    <xacro:property name="servo_width" value="0.04"/>
+    <xacro:property name="servo_depth" value="0.02"/>
+    <xacro:property name="servo_height" value="0.04"/>
+
+    <xacro:property name="wrist_width" value="0.045"/>
+    <xacro:property name="wrist_length" value="0.045"/>
+
+    <xacro:property name="wrist_roll_length" value="0.05"/>
+    <xacro:property name="gripper_length" value="0.10"/>
+    <xacro:property name="gripper_width" value="0.05"/>
+
+    <xacro:property name="gripper_base_length" value="0.03"/>
+    <xacro:property name="gripper_base_width" value="0.05"/>
+
+    <xacro:property name="finger_length" value="0.06"/>
+    <xacro:property name="finger_width" value="0.01"/>
+    <xacro:property name="finger_height" value="0.015"/>
+
+    <xacro:property name="finger_spacing" value="0.04"/>
+    <xacro:property name="finger_open_angle" value="0.45"/>
+</robot>

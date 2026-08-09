@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- Simple aluminium plate -->
+
+  <xacro:macro name="plate"
+               params="
+                 x
+                 y
+                 z
+                 length
+                 width
+                 thickness
+                 material">
+
+    <visual>
+      <origin xyz="${x} ${y} ${z}"/>
+      <geometry>
+        <box size="${length}
+            ${width}
+            ${thickness}"/>
+      </geometry>
+      <material name="aluminium"/>
+    </visual>
+    
+  </xacro:macro>
+
+</robot>

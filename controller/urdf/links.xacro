@@ -1,0 +1,228 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- Base -->
+
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <!-- <cylinder
+            radius="${base_radius}"
+            length="${base_height}"/> -->
+        <box
+            size="${base_width}
+            ${base_width}
+            ${base_height}"/>
+      </geometry>
+      <material name="gray"/>
+    </visual>
+    <collision>
+      <geometry>
+        <!-- <cylinder
+            radius="${base_radius}"
+            length="${base_height}"/> -->
+        <box
+            size="${base_width}
+            ${base_width}
+            ${base_height}"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Shoulder -->
+
+  <link name="shoulder_link">
+    <visual>
+      <origin
+        xyz="0 0 ${shoulder_height/2}"/>
+      <geometry>
+        <box
+            size="${shoulder_width}
+            ${shoulder_width}
+            ${shoulder_height}"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 ${shoulder_height/2}"/>
+      <geometry>
+        <box
+            size="${shoulder_width}
+            ${shoulder_width}
+            ${shoulder_height}"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Upper Arm -->
+
+  <link name="upper_arm_link">
+    <visual>
+        <origin
+        xyz="0 0 ${upper_arm_length/2}"/>
+        <geometry>
+        <box
+            size="${upper_arm_width}
+            ${upper_arm_width}
+            ${upper_arm_length}"/>
+        </geometry>
+        <material name="green"/>
+    </visual>
+    <collision>
+        <origin
+        xyz="0 0 ${upper_arm_length/2}"/>
+        <geometry>
+        <box
+            size="${upper_arm_width}
+            ${upper_arm_width}
+            ${upper_arm_length}"/>
+        </geometry>
+    </collision>
+    </link>
+
+  <!-- Forearm -->
+
+  <link name="forearm_link">
+    <visual>
+        <origin
+        xyz="0 0 ${forearm_length/2}"/>
+        <geometry>
+        <box
+            size="${forearm_width}
+            ${forearm_width}
+            ${forearm_length}"/>
+        </geometry>
+        <material name="green"/>
+    </visual>
+    <collision>
+        <origin
+        xyz="0 0 ${forearm_length/2}"/>
+        <geometry>
+        <box
+            size="${forearm_width}
+            ${forearm_width}
+            ${forearm_length}"/>
+        </geometry>
+    </collision>
+  </link>
+
+    <!-- <xacro:box_link
+      name="forearm_link"
+
+      size_x="${forearm_width}"
+      size_y="${forearm_width}"
+      size_z="${forearm_length}"
+
+      origin_x="0"
+      origin_y="0"
+      origin_z="${forearm_length/2}"
+
+      mass="0.15"
+
+      color="red"/> -->
+
+  <!-- Wrist -->
+
+  <link name="wrist_link">
+    <visual>
+      <origin xyz="0 0 ${wrist_length/2}"/>
+      <geometry>
+        <box size="${wrist_width}
+          ${wrist_width}
+          ${wrist_length}"/>
+      </geometry>
+      <material name="gray"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 ${wrist_length/2}"/>
+      <geometry>
+        <box size="${wrist_width}
+          ${wrist_width}
+          ${wrist_length}"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Wrist Roll -->
+
+  <link name="wrist_roll_link">
+    <visual>
+      <origin xyz="0 0 ${wrist_roll_length/2}"/>
+      <geometry>
+        <box size="0.045 0.045 ${wrist_roll_length}"/>
+      </geometry>
+      <material name="green"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 ${wrist_roll_length/2}"/>
+      <geometry>
+        <box size="0.045 0.045 ${wrist_roll_length}"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Gripper -->
+
+  <link name="gripper_base_link">
+    <visual>
+      <origin xyz="0 0 ${gripper_base_length/2}"/>
+      <geometry>
+        <box size="${gripper_base_width}
+                  ${gripper_base_width}
+                  ${gripper_base_length}"/>
+      </geometry>
+      <material name="gray"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 ${gripper_base_length/2}"/>
+      <geometry>
+        <box size="${gripper_base_width}
+                  ${gripper_base_width}
+                  ${gripper_base_length}"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="left_finger_link">
+    <visual>
+      <origin xyz="0 0 ${finger_length/2}"/>
+      <geometry>
+        <box size="${finger_width}
+                  ${finger_height}
+                  ${finger_length}"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 ${finger_length/2}"/>
+      <geometry>
+        <box size="${finger_width}
+                  ${finger_height}
+                  ${finger_length}"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="right_finger_link">
+    <visual>
+      <origin xyz="0 0 ${finger_length/2}"/>
+      <geometry>
+        <box size="${finger_width}
+                  ${finger_height}
+                  ${finger_length}"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 ${finger_length/2}"/>
+      <geometry>
+        <box size="${finger_width}
+                  ${finger_height}
+                  ${finger_length}"/>
+      </geometry>
+    </collision>
+  </link>
+
+</robot>

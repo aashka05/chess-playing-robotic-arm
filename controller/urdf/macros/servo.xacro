@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+<xacro:macro name="servo" params="name">
+
+<link name="${name}">
+    <visual>
+        <geometry>
+            <box size="${servo_length}
+                ${servo_width}
+                ${servo_height}"/>
+        </geometry>
+        <material name="black"/>
+    </visual>
+</link>
+
+</xacro:macro>
+
+</robot>

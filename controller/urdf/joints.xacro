@@ -1,0 +1,102 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <joint name="base_joint" type="revolute">
+        <parent link="base_link"/>
+        <child link="shoulder_link"/>
+        <origin xyz="0 0 0.02"/>
+        <axis xyz="0 0 1"/>
+        <limit
+        lower="-1.57"
+        upper="1.57"
+        effort="10"
+        velocity="1.5"/>
+    </joint>
+
+    <joint name="shoulder_joint" type="revolute">
+        <parent link="shoulder_link"/>
+        <child link="upper_arm_link"/>
+        <origin xyz="0 0 ${shoulder_height}"/>
+        
+        <!-- Shoulder pitches forward/backward -->
+        <axis xyz="0 1 0"/>
+        <limit
+            lower="-1.57"
+            upper="1.57"
+            effort="10"
+            velocity="1.5"/>
+    </joint>
+
+    <joint name="elbow_joint" type="revolute">
+        <parent link="upper_arm_link"/>
+        <child link="forearm_link"/>
+        <!-- Top of the upper arm -->
+        <origin xyz="0 0 ${upper_arm_length}"/>
+        <axis xyz="0 1 0"/>
+        <limit
+            lower="0"
+            upper="2.8"
+            effort="10"
+            velocity="1.5"/>
+    </joint>
+
+    <joint name="wrist_pitch_joint" type="revolute">
+        <parent link="forearm_link"/>
+        <child link="wrist_link"/>
+        <origin xyz="0 0 ${forearm_length}"/>
+        <axis xyz="0 1 0"/>
+        <limit
+            lower="-1.57"
+            upper="1.57"
+            effort="10"
+            velocity="1.5"/>
+    </joint>
+
+    <joint name="wrist_roll_joint" type="revolute">
+        <parent link="wrist_link"/>
+        <child link="wrist_roll_link"/>
+        <origin xyz="0 0 ${wrist_length}"/>
+        <axis xyz="0 0 1"/>
+        <limit
+            lower="-1.57"
+            upper="1.57"
+            effort="10"
+            velocity="2.0"/>
+    </joint>
+
+    <joint name="gripper_base_joint" type="fixed">
+        <parent link="wrist_roll_link"/>
+        <child link="gripper_base_link"/>
+        <origin xyz="0 0 ${wrist_roll_length}" rpy="0 1.57 0"/>
+    </joint>
+
+    <joint name="left_finger_joint" type="revolute">
+        <parent link="gripper_base_link"/>
+        <child link="left_finger_link"/>
+        <origin xyz="0 ${finger_spacing/2} ${gripper_base_length}"/>
+        <axis xyz="1 0 0"/>
+        <limit
+            lower="0.0"
+            upper="${finger_open_angle}"
+            effort="5"
+            velocity="1.0"/>
+    </joint>
+
+    <joint name="right_finger_joint" type="revolute">
+        <parent link="gripper_base_link"/>
+        <child link="right_finger_link"/>
+        <origin xyz="0 -${finger_spacing/2} ${gripper_base_length}"/>
+        <axis xyz="1 0 0"/>
+        <limit
+            lower="-${finger_open_angle}"
+            upper="0.0"
+            effort="5"
+            velocity="1.0"/>
+        <mimic
+            joint="left_finger_joint"
+            multiplier="-1"
+            offset="0"/>
+    </joint>
+
+</robot>
