@@ -1,152 +1,199 @@
-from ultralytics import YOLO
+from pathlib import Path
+from datetime import datetime
+
 import cv2
-import os
+from ultralytics import YOLO
 
-# ==========================================
-# Paths
-# ==========================================
-MODEL_PATH = "runs/detect/vision/runs/piece_detector/weights/best.pt"
-IMAGE_PATH = "vision/test_images/chess6.jpg"
-OUTPUT_PATH = "vision/outputs/detected.jpg"
 
-# ==========================================
-# Load model
-# ==========================================
-model = YOLO(MODEL_PATH)
+# ============================================================
+# PATHS
+# ============================================================
 
-# ==========================================
-# Read image
-# ==========================================
-image = cv2.imread(IMAGE_PATH)
+# Project root:
+# C:\Users\veera\Desktop\chess-playing-robotic-arm
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-if image is None:
-    raise FileNotFoundError(f"Image not found: {IMAGE_PATH}")
+MODEL_PATH = (
+    PROJECT_ROOT
+    / "runs"
+    / "detect"
+    / "train-3"
+    / "weights"
+    / "best.pt"
+)
 
-# ==========================================
-# Run Detection
-# ==========================================
+IMAGE_PATH = (
+    PROJECT_ROOT
+    / "datasets"
+    / "board_image"
+    / "test19.jpg"
+)
+
+OUTPUT_DIR = PROJECT_ROOT / "vision" / "outputs"
+
+
+# ============================================================
+# SETTINGS
+# ============================================================
+
+IMAGE_SIZE = 640
+CONFIDENCE = 0.25
+
+
+# ============================================================
+# LOAD MODEL
+# ============================================================
+
+if not MODEL_PATH.exists():
+    raise FileNotFoundError(
+        f"Model not found:\n{MODEL_PATH}"
+    )
+
+if not IMAGE_PATH.exists():
+    raise FileNotFoundError(
+        f"Input image not found:\n{IMAGE_PATH}"
+    )
+
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+model = YOLO(str(MODEL_PATH))
+
+
+# ============================================================
+# RUN DETECTION
+# ============================================================
+
 results = model.predict(
-    image,
-    conf=0.25,
-    iou=0.45
+    source=str(IMAGE_PATH),
+    imgsz=IMAGE_SIZE,
+    conf=CONFIDENCE,
+    verbose=False,
 )
 
 result = results[0]
 
-# ==========================================
-# Class name mapping
-# ==========================================
-label_map = {
-    "white-pawn": "wp",
-    "white-rook": "wr",
-    "white-knight": "wn",
-    "white-bishop": "wb",
-    "white-queen": "wq",
-    "white-king": "wk",
-    "black-pawn": "bp",
-    "black-rook": "br",
-    "black-knight": "bn",
-    "black-bishop": "bb",
-    "black-queen": "bq",
-    "black-king": "bk",
-}
 
-print("\nDetected Pieces")
-print("-" * 45)
+# ============================================================
+# LOAD ORIGINAL IMAGE
+# ============================================================
 
-# ==========================================
-# Draw detections
-# ==========================================
-for box in result.boxes:
+image = cv2.imread(str(IMAGE_PATH))
 
-    cls = int(box.cls[0])
-    confidence = float(box.conf[0])
+if image is None:
+    raise RuntimeError(
+        f"Could not read image:\n{IMAGE_PATH}"
+    )
 
-    x1, y1, x2, y2 = map(int, box.xyxy[0])
 
-    class_name = model.names[cls]
-    label = label_map.get(class_name, class_name)
+# ============================================================
+# DRAW CLEAN W / B LABELS
+# ============================================================
 
-    print(f"{label:2s}   {confidence:.2f}")
+for box, class_id in zip(
+    result.boxes.xyxy,
+    result.boxes.cls
+):
 
-    # -----------------------
-    # Bounding Box
-    # -----------------------
+    x1, y1, x2, y2 = map(
+        int,
+        box.tolist()
+    )
+
+    class_id = int(class_id.item())
+
+    # Our dataset:
+    # 0 = white_piece
+    # 1 = black_piece
+
+    if class_id == 0:
+        label = "w"
+    elif class_id == 1:
+        label = "b"
+    else:
+        continue
+
+    # Draw bounding box
     cv2.rectangle(
         image,
         (x1, y1),
         (x2, y2),
         (0, 255, 0),
-        2
+        2,
     )
 
-    # -----------------------
-    # BIG LABEL
-    # -----------------------
-    # font = cv2.FONT_HERSHEY_SIMPLEX
-    # font_scale = 1.3       # Increase to 1.3 or 1.5 if needed
-    # thickness = 3
+    # Label size
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = 2.0
+    thickness = 2
 
-    # (tw, th), _ = cv2.getTextSize(
-    #     label,
-    #     font,
-    #     font_scale,
-    #     thickness
-    # )
+    (text_width, text_height), baseline = cv2.getTextSize(
+        label,
+        font,
+        font_scale,
+        thickness,
+    )
 
-    # # Put label INSIDE bounding box if possible
-    # tx = x1 + 5
-    # ty = y1 + th + 8
+    # Keep label inside image boundaries
+    label_top = max(
+        0,
+        y1 - text_height - baseline - 6
+    )
 
-    # # If text would go outside box, move it above
-    # if ty > y2:
-    #     ty = y1 - 8
+    label_right = x1 + text_width + 8
 
-    # # Keep inside image
-    # if ty - th < 0:
-    #     ty = th + 5
+    # White label background
+    cv2.rectangle(
+        image,
+        (x1, label_top),
+        (label_right, y1),
+        (255, 255, 255),
+        -1,
+    )
 
-    # # Black background
-    # cv2.rectangle(
-    #     image,
-    #     (tx - 4, ty - th - 4),
-    #     (tx + tw + 4, ty + 4),
-    #     (0, 0, 0),
-    #     -1
-    # )
+    # Black text
+    cv2.putText(
+        image,
+        label,
+        (x1 + 4, y1 - 5),
+        font,
+        font_scale,
+        (0, 0, 0),
+        thickness,
+        cv2.LINE_AA,
+    )
 
-    # # Yellow text
-    # cv2.putText(
-    #     image,
-    #     label,
-    #     (tx, ty),
-    #     font,
-    #     font_scale,
-    #     (0, 255, 255),
-    #     thickness,
-    #     cv2.LINE_AA
-    # )
 
-# ==========================================
-# Save output
-# ==========================================
-os.makedirs("vision/outputs", exist_ok=True)
-cv2.imwrite(OUTPUT_PATH, image)
+# ============================================================
+# SAVE RESULT
+# ============================================================
 
-print("\nOutput saved to:")
-print(OUTPUT_PATH)
+timestamp = datetime.now().strftime(
+    "%Y%m%d_%H%M%S"
+)
 
-# ==========================================
-# Display (Resizable Window)
-# ==========================================
-window_name = "Chess Piece Detection"
+output_path = (
+    OUTPUT_DIR
+    / f"chess3_bw_{timestamp}.jpg"
+)
 
-cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+success = cv2.imwrite(
+    str(output_path),
+    image,
+)
 
-# Initial window size
-cv2.resizeWindow(window_name, 1400, 1000)
+if not success:
+    raise RuntimeError(
+        f"Failed to save output:\n{output_path}"
+    )
 
-cv2.imshow(window_name, image)
 
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+# ============================================================
+# SUMMARY
+# ============================================================
+
+print()
+print("Detection completed successfully.")
+print(f"Model: {MODEL_PATH}")
+print(f"Input: {IMAGE_PATH}")
+# print(f"Detections: {len(result.boxes)}")
+print(f"Output: {output_path}")

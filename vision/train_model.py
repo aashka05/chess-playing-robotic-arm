@@ -7,16 +7,21 @@ from ultralytics import YOLO
 # -----------------------------
 ROOT = Path(__file__).resolve().parent.parent
 
-MODEL_PATH = ROOT / "vision" / "models" / "best.pt"
-DATASET_PATH = ROOT / "vision" / "data" / "data.yaml"
-RUNS_PATH = ROOT / "vision" / "runs"
+# YOLO11 pretrained model
+MODEL_PATH = ROOT / "yolo11n.pt"
+
+# New 12-class dataset
+DATASET_PATH = ROOT / "datasets" / "my_dataset_yolo11_converted" / "data.yaml"
+
+# Where this model's training results will be stored
+RUNS_PATH = ROOT / "models" / "detection" / "chess_pieces_yolo11"
 
 # -----------------------------
 # Training Parameters
 # -----------------------------
 IMAGE_SIZE = 640
-EPOCHS = 100
-BATCH_SIZE = 16
+EPOCHS = 100 
+BATCH_SIZE = 8
 WORKERS = 4
 
 # -----------------------------
@@ -24,20 +29,19 @@ WORKERS = 4
 # -----------------------------
 if torch.cuda.is_available():
     DEVICE = "cuda"
-elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-    DEVICE = "mps"
 else:
     DEVICE = "cpu"
 
 
 def main():
-    print("=" * 50)
-    print("Chess Piece Detector Training")
-    print("=" * 50)
+    print("=" * 60)
+    print("Chess Piece Detector - YOLO11 Training")
+    print("=" * 60)
     print(f"Device   : {DEVICE}")
     print(f"Model    : {MODEL_PATH}")
     print(f"Dataset  : {DATASET_PATH}")
-    print("=" * 50)
+    print(f"Output   : {RUNS_PATH}")
+    print("=" * 60)
 
     model = YOLO(str(MODEL_PATH))
 
@@ -49,11 +53,18 @@ def main():
         workers=WORKERS,
         device=DEVICE,
         project=str(RUNS_PATH),
-        name="chess_finetuned",
+        name="training",
+        patience=20,
+        cache=False,
     )
 
     print("\nTraining Complete!")
-    print(RUNS_PATH / "chess_finetuned" / "weights" / "best.pt")
+    print(
+        RUNS_PATH
+        / "training"
+        / "weights"
+        / "best.pt"
+    )
 
 
 if __name__ == "__main__":
