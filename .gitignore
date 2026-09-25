@@ -25,6 +25,7 @@ vision/outputs/
 # Dataset
 # (Keep this ignored if datasets are large)
 vision/data/
+datasets/
 
 # Trained Models
 vision/models/*.pt
@@ -42,3 +43,14 @@ dist/
 *.egg-info/
 yolo11s.pt
 *.pt
+
+#folders
+models/
+next_update/
+random_images/
+stockfish/
+
+# Dataset utility scripts
+combine_datasets.py
+convert_labels.py
+merge_datasets.py

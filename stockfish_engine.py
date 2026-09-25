@@ -7,8 +7,16 @@ from pathlib import Path
 # CONFIGURATION
 # ============================================================
 
+PROJECT_DIR = Path(__file__).resolve().parent.parent
+
 STOCKFISH_PATH = Path(
     r"C:\Users\veera\Desktop\chess-playing-robotic-arm\stockfish\stockfish.exe"
+)
+
+MODEL_PATH = (
+    PROJECT_DIR
+    / "stockfish"
+    / "stockfish.exe"
 )
 
 SEARCH_DEPTH = 15

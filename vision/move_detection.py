@@ -18,7 +18,7 @@ from stockfish_engine import StockfishEngine
 # ============================================================
 
 VISION_DIR = Path(
-    r"C:\Users\veera\Desktop\chess-playing-robotic-arm\vision"
+    PROJECT_ROOT / "vision"
 )
 
 OUTPUT_DIR = VISION_DIR / "outputs"
@@ -1425,7 +1425,7 @@ def main():
 
 
 # ============================================================
-# RUN
+#   
 # ============================================================
 
 if __name__ == "__main__":

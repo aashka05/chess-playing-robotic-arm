@@ -9,9 +9,7 @@ from ultralytics import YOLO
 # CONFIGURATION
 # ============================================================
 
-PROJECT_DIR = Path(
-    r"C:\Users\veera\Desktop\chess-playing-robotic-arm"
-)
+PROJECT_DIR = Path(__file__).resolve().parent.parent
 
 MODEL_PATH = (
     PROJECT_DIR

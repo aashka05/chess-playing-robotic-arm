@@ -8,9 +8,7 @@ import json
 # CONFIGURATION
 # ============================================================
 
-PROJECT_DIR = Path(
-    r"C:\Users\veera\Desktop\chess-playing-robotic-arm"
-)
+PROJECT_DIR = Path(__file__).resolve().parent.parent
 
 IMAGE_PATH = PROJECT_DIR / "datasets" / "3merged" / "train" / "images" / "my5_IMG_20260906_092944352_jpg.rf.aa13d20816f7402aba96798096fc71aa.jpg"
 
