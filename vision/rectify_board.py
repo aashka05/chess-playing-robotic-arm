@@ -1,3 +1,4 @@
+import sys
 import cv2
 import numpy as np
 from pathlib import Path
@@ -10,9 +11,26 @@ import json
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 
-IMAGE_PATH = PROJECT_DIR / "datasets" / "3merged" / "train" / "images" / "my5_IMG_20260906_092944352_jpg.rf.aa13d20816f7402aba96798096fc71aa.jpg"
+# ============================================================
+# IMAGE PATH FROM COMMAND LINE
+# ============================================================
 
-IMAGE_PATH = "C:/Users/veera/Downloads/IMG_20260906_092126069.jpg"
+if len(sys.argv) != 2:
+    print("Usage:")
+    print(r'python vision/rectify_board.py "path\to\image.jpg"')
+    sys.exit(1)
+
+IMAGE_PATH = Path(sys.argv[1])
+
+if not IMAGE_PATH.exists():
+    print(f"ERROR: Image not found: {IMAGE_PATH}")
+    sys.exit(1)
+
+print(f"Using image: {IMAGE_PATH}")
+
+# IMAGE PATH DONE
+
+# IMAGE_PATH = "C:/Users/veera/Downloads/IMG_20260906_092126069.jpg"
 
 OUTPUT_DIR = PROJECT_DIR / "vision" / "outputs"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -21,6 +39,9 @@ DEBUG_OUTPUT_PATH = OUTPUT_DIR / "64_squares_debug.jpg"
 RECTIFIED_OUTPUT_PATH = OUTPUT_DIR / "rectified_board.jpg"
 COORDINATES_OUTPUT_PATH = OUTPUT_DIR / "square_coordinates.json"
 
+FEN_FILE = PROJECT_DIR / "vision" / "outputs" / "fen.txt"
+
+INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
 # ============================================================
 # ARUCO CONFIGURATION
@@ -519,3 +540,11 @@ print()
 print("=" * 70)
 print("DONE")
 print("=" * 70)
+
+# ============================================================
+# RESET FEN TO INITIAL BOARD POSITION
+# ============================================================
+
+FEN_FILE.write_text(INITIAL_FEN + "\n", encoding="utf-8")
+
+print(f"FEN reset to initial board position: {INITIAL_FEN}")

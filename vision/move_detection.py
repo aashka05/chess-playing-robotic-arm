@@ -25,24 +25,31 @@ OUTPUT_DIR = VISION_DIR / "outputs"
 
 FEN_PATH = OUTPUT_DIR / "fen.txt"
 
-# ------------------------------------------------------------
-# IMAGE TO PROCESS
-#
-# Change this path when processing a different board image.
-# Later this can be replaced by a camera frame without
-# changing the rest of the architecture.
-# ------------------------------------------------------------
+# ============================================================
+# IMAGE PATH FROM COMMAND LINE
+# ============================================================
 
-IMAGE_PATH = Path(
-    r"C:\Users\veera\Desktop\chess-playing-robotic-arm\datasets\board_image\test16.jpg"
-)
+if len(sys.argv) != 2:
+    print("Usage:")
+    print(r'python vision/rectify_board.py "path\to\image.jpg"')
+    sys.exit(1)
+
+IMAGE_PATH = Path(sys.argv[1])
+
+if not IMAGE_PATH.exists():
+    print(f"ERROR: Image not found: {IMAGE_PATH}")
+    sys.exit(1)
+
+print(f"Using image: {IMAGE_PATH}")
+
+# IMAGE PATH DONE
 
 # IMAGE_PATH = Path(
 #     r"C:\Users\veera\Downloads\IMG_20260906_092309894.jpg"
 # )
-IMAGE_PATH = Path(
-    r"C:\Users\veera\Downloads\IMG_20260906_092316483.jpg"
-)
+# IMAGE_PATH = Path(
+#     r"C:\Users\veera\Downloads\IMG_20260906_092316483.jpg"
+# )
 
 # ============================================================
 # PIECE <-> FEN MAPPING
