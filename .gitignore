@@ -48,7 +48,7 @@ yolo11s.pt
 models/
 next_update/
 random_images/
-stockfish/
+stockfish/stockfish
 
 # Dataset utility scripts
 combine_datasets.py

@@ -1,55 +1,26 @@
-from pathlib import Path
-
-from map_pieces_to_squares import detect_pieces
-
 import sys
 from pathlib import Path
 
+import cv2
+
+# Make the project root importable when run as a script (python vision/xyz.py).
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from stockfish_engine import StockfishEngine
+from vision.map_pieces_to_squares import detect_pieces
 
 
 # ============================================================
 # CONFIGURATION
 # ============================================================
 
-VISION_DIR = Path(
-    PROJECT_ROOT / "vision"
-)
+VISION_DIR = Path(__file__).resolve().parent
 
 OUTPUT_DIR = VISION_DIR / "outputs"
 
 FEN_PATH = OUTPUT_DIR / "fen.txt"
-
-# ============================================================
-# IMAGE PATH FROM COMMAND LINE
-# ============================================================
-
-if len(sys.argv) != 2:
-    print("Usage:")
-    print(r'python vision/rectify_board.py "path\to\image.jpg"')
-    sys.exit(1)
-
-IMAGE_PATH = Path(sys.argv[1])
-
-if not IMAGE_PATH.exists():
-    print(f"ERROR: Image not found: {IMAGE_PATH}")
-    sys.exit(1)
-
-print(f"Using image: {IMAGE_PATH}")
-
-# IMAGE PATH DONE
-
-# IMAGE_PATH = Path(
-#     r"C:\Users\veera\Downloads\IMG_20260906_092309894.jpg"
-# )
-# IMAGE_PATH = Path(
-#     r"C:\Users\veera\Downloads\IMG_20260906_092316483.jpg"
-# )
 
 # ============================================================
 # PIECE <-> FEN MAPPING
@@ -1180,10 +1151,103 @@ def print_move(move):
         )
 
 # ============================================================
+# DETECT MOVE FROM IMAGE (importable entry point)
+# ============================================================
+
+def detect_move_from_image(image, previous_fen, squares=None, model=None):
+    """
+    Run the full detection pipeline on an in-memory image.
+
+    Args:
+        image: BGR numpy array.
+        previous_fen: FEN of the position before the move.
+        squares: square coordinates from rectify_board().
+        model: a loaded YOLO model (optional).
+
+    Returns:
+        dict:
+            {
+                "detected_board": {"e2": "white_pawn", ...},
+                "details": per-square detections with confidences,
+                "current_board": {"e2": "P", ...},
+                "current_placement": FEN placement field,
+                "move": result of detect_move() ("type": "ambiguous" if unknown),
+                "new_fen": FEN after the move, or None if ambiguous,
+            }
+
+    Does not read or write fen.txt and does not call Stockfish.
+    """
+
+    detected_board, details = detect_pieces(
+        image,
+        squares=squares,
+        model=model,
+        return_details=True,
+    )
+
+    current_board = convert_detection_to_fen_board(
+        detected_board
+    )
+
+    current_placement = board_to_fen_placement(
+        current_board
+    )
+
+    (
+        previous_board,
+        side_to_move,
+        castling_rights,
+        previous_en_passant,
+        halfmove_clock,
+        fullmove_number,
+    ) = parse_fen(previous_fen)
+
+    move = detect_move(
+        previous_board,
+        current_board,
+        side_to_move,
+        previous_en_passant
+    )
+
+    new_fen = None
+
+    if move["type"] != "ambiguous":
+        new_fen = update_game_state(
+            previous_fen,
+            current_board,
+            move
+        )
+
+    return {
+        "detected_board": detected_board,
+        "details": details,
+        "current_board": current_board,
+        "current_placement": current_placement,
+        "move": move,
+        "new_fen": new_fen,
+    }
+
+
+# ============================================================
 # MAIN
 # ============================================================
 
-def main():
+def main(image_path=None):
+    global IMAGE_PATH
+
+    if image_path is None:
+        if len(sys.argv) == 2:
+            image_path = sys.argv[1]
+
+    if image_path is None:
+        raise ValueError("No image path given to move_detection.main()")
+
+    IMAGE_PATH = Path(image_path)
+
+    if not IMAGE_PATH.exists():
+        raise FileNotFoundError(f"Image not found: {IMAGE_PATH}")
+
+    print(f"Using image: {IMAGE_PATH}")
 
     print("=" * 60)
     print("CHESS MOVE DETECTION")
@@ -1192,6 +1256,11 @@ def main():
     print(
         f"\nImage:\n{IMAGE_PATH}"
     )
+
+    image = cv2.imread(str(IMAGE_PATH))
+
+    if image is None:
+        raise ValueError(f"Could not read image:\n{IMAGE_PATH}")
 
     # ========================================================
     # STEP 1
@@ -1204,7 +1273,8 @@ def main():
     )
 
     detected_board = detect_pieces(
-        IMAGE_PATH
+        image,
+        verbose=True
     )
 
     # ========================================================
@@ -1340,6 +1410,8 @@ def main():
         "\n[4/5] Asking Stockfish for best move..."
     )
 
+    from stockfish.stockfish_engine import StockfishEngine
+
     stockfish = StockfishEngine()
 
     try:
@@ -1349,7 +1421,6 @@ def main():
                 human_fen
             )
         )
-        
 
     except Exception as error:
 
@@ -1430,6 +1501,7 @@ def main():
         f"\nRobot arm move: {robot_arm_move}"
     )
 
+    return robot_arm_move
 
 # ============================================================
 #   

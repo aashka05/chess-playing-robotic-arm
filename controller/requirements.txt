@@ -1,0 +1,5 @@
+# Arm controller (send_angles.py)
+pyserial>=3.5
+# Already needed by vision; also enough for a future inverse-kinematics solver
+# (angles computed from arm link lengths instead of angles_dict.json).
+numpy

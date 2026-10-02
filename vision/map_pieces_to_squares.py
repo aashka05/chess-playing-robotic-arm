@@ -1,38 +1,21 @@
+import sys
 import cv2
 import numpy as np
 import json
 from pathlib import Path
-from ultralytics import YOLO
 
 
 # ============================================================
 # CONFIGURATION
 # ============================================================
 
-PROJECT_DIR = Path(__file__).resolve().parent.parent
+VISION_DIR = Path(__file__).resolve().parent
 
-MODEL_PATH = (
-    PROJECT_DIR
-    / "runs"
-    / "detect"
-    / "merged-from-scratch2"
-    / "weights"
-    / "best.pt"
-)
+MODEL_PATH = VISION_DIR / "models" / "best.pt"
 
-COORDINATES_PATH = (
-    PROJECT_DIR
-    / "vision"
-    / "outputs"
-    / "square_coordinates.json"
-)
+COORDINATES_PATH = VISION_DIR / "outputs" / "square_coordinates.json"
 
-OUTPUT_PATH = (
-    PROJECT_DIR
-    / "vision"
-    / "outputs"
-    / "piece_square_debug.jpg"
-)
+OUTPUT_PATH = VISION_DIR / "outputs" / "piece_square_debug.jpg"
 
 
 # ============================================================
@@ -56,46 +39,62 @@ CLASS_NAMES = [
 
 
 # ============================================================
-# LOAD MODEL
+# LOAD MODEL (lazily, once per path)
 # ============================================================
 
-model = YOLO(str(MODEL_PATH))
+_models = {}
+
+
+def load_model(model_path=MODEL_PATH):
+    from ultralytics import YOLO
+
+    model_path = str(model_path)
+
+    if model_path not in _models:
+        _models[model_path] = YOLO(model_path)
+
+    return _models[model_path]
 
 
 # ============================================================
 # LOAD SQUARE COORDINATES
 # ============================================================
 
-with open(COORDINATES_PATH, "r") as f:
-    squares = json.load(f)
+def load_squares(coordinates_path=COORDINATES_PATH):
+    with open(coordinates_path, "r") as f:
+        return json.load(f)
 
 
-# square_coordinates.json stores squares as a LIST:
-#
-# [
-#     {
-#         "name": "A8",
-#         "row": 0,
-#         "column": 0,
-#         "rectified": {...},
-#         "original_image": {...}
-#     },
-#     ...
-# ]
-#
-# Convert it into a dictionary indexed by square name.
+def index_squares(squares):
+    # square_coordinates.json stores squares as a LIST:
+    #
+    # [
+    #     {
+    #         "name": "A8",
+    #         "row": 0,
+    #         "column": 0,
+    #         "rectified": {...},
+    #         "original_image": {...}
+    #     },
+    #     ...
+    # ]
+    #
+    # Convert it into a dictionary indexed by square name.
 
-squares = {
-    item["name"]: item
-    for item in squares
-}
+    if isinstance(squares, dict):
+        return squares
+
+    return {
+        item["name"]: item
+        for item in squares
+    }
 
 
 # ============================================================
 # FIND SQUARE
 # ============================================================
 
-def find_square(x, y):
+def find_square(x, y, squares):
     """
     Given an (x, y) point in the original image,
     return the corresponding chess square.
@@ -159,10 +158,26 @@ def find_square(x, y):
 # DETECT PIECES
 # ============================================================
 
-def detect_pieces(image_path):
+def detect_pieces(
+    image,
+    squares=None,
+    model=None,
+    return_details=False,
+    debug_output_path=None,
+    verbose=False,
+):
     """
     Detect chess pieces in the supplied image
     and map them to chessboard squares.
+
+    Args:
+        image: BGR numpy array (cv2.imread / cv2.imdecode).
+        squares: square coordinates from rectify_board()
+            (list or dict by name). Defaults to COORDINATES_PATH.
+        model: a loaded YOLO model. Defaults to MODEL_PATH.
+        return_details: also return per-square detections
+            (piece, confidence, bbox, center).
+        debug_output_path: where to save the annotated image (optional).
 
     Returns:
         dict:
@@ -172,37 +187,36 @@ def detect_pieces(image_path):
                 ...
             }
 
+        or, with return_details=True, (board, details) where details
+        is {"a8": {"piece", "confidence", "square", "center", "bbox"}}.
+
     This function does NOT generate FEN.
     """
-
-    image_path = Path(image_path)
 
     # --------------------------------------------------------
     # Check image
     # --------------------------------------------------------
 
-    if not image_path.exists():
-
-        raise FileNotFoundError(
-            f"Image not found:\n{image_path}"
-        )
-
-    image = cv2.imread(
-        str(image_path)
-    )
-
     if image is None:
 
         raise ValueError(
-            f"Could not read image:\n{image_path}"
+            "No image given to detect_pieces()"
         )
+
+    if squares is None:
+        squares = load_squares()
+
+    squares = index_squares(squares)
+
+    if model is None:
+        model = load_model()
 
     # ========================================================
     # YOLO DETECTION
     # ========================================================
 
     results = model.predict(
-        source=str(image_path),
+        source=image,
         conf=0.25,
         verbose=False
     )
@@ -247,7 +261,8 @@ def detect_pieces(image_path):
 
             square = find_square(
                 center_x,
-                center_y
+                center_y,
+                squares
             )
 
             if square is None:
@@ -322,90 +337,95 @@ def detect_pieces(image_path):
     # DRAW DEBUG IMAGE
     # ========================================================
 
-    debug_image = image.copy()
+    if debug_output_path is not None:
 
-    for square, detection in (
-        best_detection_per_square.items()
-    ):
+        debug_image = image.copy()
 
-        piece = detection["piece"]
-        confidence = detection["confidence"]
+        for square, detection in (
+            best_detection_per_square.items()
+        ):
 
-        x1, y1, x2, y2 = (
-            detection["bbox"]
+            piece = detection["piece"]
+            confidence = detection["confidence"]
+
+            x1, y1, x2, y2 = (
+                detection["bbox"]
+            )
+
+            center_x, center_y = (
+                detection["center"]
+            )
+
+            # ----------------------------------------------------
+            # Bounding box
+            # ----------------------------------------------------
+
+            cv2.rectangle(
+                debug_image,
+                (x1, y1),
+                (x2, y2),
+                (0, 255, 0),
+                2
+            )
+
+            # ----------------------------------------------------
+            # Label
+            # ----------------------------------------------------
+
+            label = (
+                f"{piece} -> "
+                f"{square} "
+                f"{confidence:.3f}"
+            )
+
+            cv2.putText(
+                debug_image,
+                label,
+                (
+                    x1,
+                    max(20, y1 - 8)
+                ),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.45,
+                (0, 255, 0),
+                1,
+                cv2.LINE_AA
+            )
+
+            # ----------------------------------------------------
+            # Center point
+            # ----------------------------------------------------
+
+            cv2.circle(
+                debug_image,
+                (center_x, center_y),
+                4,
+                (0, 0, 255),
+                -1
+            )
+
+        # ========================================================
+        # SAVE DEBUG IMAGE
+        # ========================================================
+
+        debug_output_path = Path(debug_output_path)
+
+        debug_output_path.parent.mkdir(
+            parents=True,
+            exist_ok=True
         )
 
-        center_x, center_y = (
-            detection["center"]
+        cv2.imwrite(
+            str(debug_output_path),
+            debug_image
         )
-
-        # ----------------------------------------------------
-        # Bounding box
-        # ----------------------------------------------------
-
-        cv2.rectangle(
-            debug_image,
-            (x1, y1),
-            (x2, y2),
-            (0, 255, 0),
-            2
-        )
-
-        # ----------------------------------------------------
-        # Label
-        # ----------------------------------------------------
-
-        label = (
-            f"{piece} -> "
-            f"{square} "
-            f"{confidence:.3f}"
-        )
-
-        cv2.putText(
-            debug_image,
-            label,
-            (
-                x1,
-                max(20, y1 - 8)
-            ),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.45,
-            (0, 255, 0),
-            1,
-            cv2.LINE_AA
-        )
-
-        # ----------------------------------------------------
-        # Center point
-        # ----------------------------------------------------
-
-        cv2.circle(
-            debug_image,
-            (center_x, center_y),
-            4,
-            (0, 0, 255),
-            -1
-        )
-
-    # ========================================================
-    # SAVE DEBUG IMAGE
-    # ========================================================
-
-    OUTPUT_PATH.parent.mkdir(
-        parents=True,
-        exist_ok=True
-    )
-
-    cv2.imwrite(
-        str(OUTPUT_PATH),
-        debug_image
-    )
 
     # ========================================================
     # CREATE BOARD STATE
     # ========================================================
 
     board = {}
+    details = {}
 
     for square, detection in (
         best_detection_per_square.items()
@@ -415,46 +435,66 @@ def detect_pieces(image_path):
             square.lower()
         ] = detection["piece"]
 
+        details[
+            square.lower()
+        ] = detection
+
     # ========================================================
     # PRINT BOARD STATE
     # ========================================================
 
-    print(
-        "\nDetected board state:"
-    )
-
-    for square in sorted(board.keys()):
-
-        detection = (
-            best_detection_per_square[
-                square.upper()
-            ]
-            if square.upper()
-            in best_detection_per_square
-            else best_detection_per_square[
-                square
-            ]
-        )
+    if verbose:
 
         print(
-            f"{board[square]:15s} -> "
-            f"{square.upper()} "
-            f"confidence="
-            f"{detection['confidence']:.3f}"
+            "\nDetected board state:"
         )
 
-    print(
-        f"\nTotal detected pieces: "
-        f"{len(board)}"
-    )
+        for square in sorted(board.keys()):
 
-    print(
-        f"Debug image saved to:\n"
-        f"{OUTPUT_PATH}"
-    )
+            print(
+                f"{board[square]:15s} -> "
+                f"{square.upper()} "
+                f"confidence="
+                f"{details[square]['confidence']:.3f}"
+            )
+
+        print(
+            f"\nTotal detected pieces: "
+            f"{len(board)}"
+        )
+
+        if debug_output_path is not None:
+            print(
+                f"Debug image saved to:\n"
+                f"{debug_output_path}"
+            )
 
     # ========================================================
     # RETURN BOARD TO MOVE DETECTION
     # ========================================================
 
+    if return_details:
+        return board, details
+
     return board
+
+
+# ============================================================
+# COMMAND LINE ENTRY POINT
+# ============================================================
+
+if __name__ == "__main__":
+
+    if len(sys.argv) != 2:
+        print("Usage:")
+        print(r'python vision/map_pieces_to_squares.py "path\to\image.jpg"')
+        sys.exit(1)
+
+    image_path = Path(sys.argv[1])
+
+    image = cv2.imread(str(image_path))
+
+    if image is None:
+        raise ValueError(f"Could not read image:\n{image_path}")
+
+    detect_pieces(image, debug_output_path=OUTPUT_PATH, verbose=True)
