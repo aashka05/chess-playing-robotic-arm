@@ -46,6 +46,7 @@ yolo11s.pt
 
 #folders
 models/
+!backend/app/models/
 next_update/
 random_images/
 stockfish/stockfish
