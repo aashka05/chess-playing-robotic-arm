@@ -82,6 +82,12 @@ class ApiClient {
 
   Future<User> me() async => User.fromJson(await _send('GET', '/auth/me') as Json);
 
+  /// Emails a reset code (the server answers the same way for unknown emails).
+  Future<void> forgotPassword(String email) async => _send('POST', '/auth/forgot-password', {'email': email});
+
+  Future<void> resetPassword(String token, String newPassword) async =>
+      _send('POST', '/auth/reset-password', {'token': token, 'new_password': newPassword});
+
   // ---- setup ----
 
   Future<SetupStatus> startSetup() async => SetupStatus.fromJson(await _send('POST', '/setup/start') as Json);

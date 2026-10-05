@@ -9,7 +9,7 @@ final sharedPrefsProvider = Provider<SharedPreferences>((ref) => throw Unimpleme
 
 const _baseUrlKey = 'base_url';
 // Override at build time: flutter run --dart-define=BASE_URL=http://localhost:8000
-const defaultBaseUrl = String.fromEnvironment('BASE_URL', defaultValue: 'http://192.168.1.10:8000');
+const defaultBaseUrl = String.fromEnvironment('BASE_URL', defaultValue: 'http://192.168.137.54:8000');
 
 class BaseUrlNotifier extends Notifier<String> {
   @override

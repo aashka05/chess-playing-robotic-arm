@@ -18,6 +18,14 @@ from app.camera.base import CameraError
 log = logging.getLogger(__name__)
 
 
+def center_square(image: np.ndarray) -> np.ndarray:
+    """Centered 1:1 crop. The app already crops; this covers clients that don't."""
+    h, w = image.shape[:2]
+    side = min(h, w)
+    top, left = (h - side) // 2, (w - side) // 2
+    return image[top : top + side, left : left + side]
+
+
 class AppUploadCameraSource:
     def __init__(self, timeout_sec: float = 20.0):
         self.timeout_sec = timeout_sec
@@ -65,5 +73,5 @@ class AppUploadCameraSource:
         if image is None:
             future.set_exception(CameraError("The uploaded file is not a readable image."))
         else:
-            future.set_result(image)
+            future.set_result(center_square(image))
         return True

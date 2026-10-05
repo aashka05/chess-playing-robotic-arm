@@ -11,7 +11,10 @@ from pathlib import Path
 
 VISION_DIR = Path(__file__).resolve().parent
 
-MODEL_PATH = VISION_DIR / "models" / "best.pt"
+PROJECT_ROOT = VISION_DIR.parent
+
+# The only YOLO weights used anywhere in the project (backend included).
+MODEL_PATH = PROJECT_ROOT / "runs" / "detect" / "merged-from-scratch2" / "weights" / "best.pt"
 
 COORDINATES_PATH = VISION_DIR / "outputs" / "square_coordinates.json"
 
@@ -45,15 +48,56 @@ CLASS_NAMES = [
 _models = {}
 
 
+def require_model_path(model_path=MODEL_PATH):
+    """Absolute path of the weights file; raises if it does not exist."""
+
+    model_path = Path(model_path).resolve()
+
+    if not model_path.is_file():
+        raise FileNotFoundError(
+            f"YOLO weights not found at {model_path}. "
+            f"Expected {MODEL_PATH.relative_to(PROJECT_ROOT)} under the project root."
+        )
+
+    return model_path
+
+
 def load_model(model_path=MODEL_PATH):
     from ultralytics import YOLO
 
-    model_path = str(model_path)
+    key = str(require_model_path(model_path))
 
-    if model_path not in _models:
-        _models[model_path] = YOLO(model_path)
+    if key not in _models:
+        model = YOLO(key)
+        check_class_names(model.names)
+        _models[key] = model
 
-    return _models[model_path]
+    return _models[key]
+
+
+def class_name(names, class_id):
+    """
+    Piece label for a YOLO class id, read from the model itself
+    ("white-pawn" and "white_pawn" both become "white_pawn").
+    """
+
+    name = names.get(class_id) if isinstance(names, dict) else (
+        names[class_id] if 0 <= class_id < len(names) else None
+    )
+
+    return None if name is None else name.replace("-", "_").lower()
+
+
+def check_class_names(names):
+    """Raise if the model's classes are not the 12 pieces we expect."""
+
+    ids = names.keys() if isinstance(names, dict) else range(len(names))
+    found = {class_name(names, i) for i in ids}
+
+    if found != set(CLASS_NAMES):
+        raise ValueError(
+            f"YOLO model classes {sorted(found)} do not match the expected pieces {CLASS_NAMES}"
+        )
 
 
 # ============================================================
@@ -272,15 +316,13 @@ def detect_pieces(
             # Class name
             # ------------------------------------------------
 
-            if (
-                class_id < 0
-                or class_id >= len(CLASS_NAMES)
-            ):
-                continue
-
-            piece_name = CLASS_NAMES[
+            piece_name = class_name(
+                model.names,
                 class_id
-            ]
+            )
+
+            if piece_name not in CLASS_NAMES:
+                continue
 
             detections.append(
                 {

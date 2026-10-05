@@ -43,7 +43,7 @@ def _jpeg_b64(image: np.ndarray, max_side: int = 480) -> str:
 class DetectionService:
     def __init__(self, calibration_path: Path, model_path: Path, min_confidence: float):
         self.calibration_path = calibration_path
-        self.model_path = model_path
+        self.model_path = map_pieces_to_squares.require_model_path(model_path)
         self.min_confidence = min_confidence
         self.calibration: Calibration | None = self._load_calibration()
 

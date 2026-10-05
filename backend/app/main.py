@@ -19,6 +19,7 @@ from app.services.errors import ServiceError
 from app.services.game_service import GameService
 from app.services.repository import Repository
 from app.services.state_machine import InvalidTransition, WrongState
+from vision import map_pieces_to_squares
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("app")
@@ -37,7 +38,7 @@ async def lifespan(app: FastAPI):
 
     detection = DetectionService(
         settings.resolve(settings.calibration_path),
-        settings.resolve(settings.yolo_model_path),
+        map_pieces_to_squares.MODEL_PATH,
         settings.detection_min_confidence,
     )
     warm_up = asyncio.create_task(detection.warm_up())

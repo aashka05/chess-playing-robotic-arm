@@ -17,10 +17,18 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60 * 24
 
+    password_reset_expire_minutes: int = 30
+    # Leave SMTP_HOST empty in development: reset codes are then logged to the console.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_starttls: bool = True
+    smtp_from: str = "Robot Chess <no-reply@localhost>"
+
     stockfish_path: str = str(PROJECT_ROOT / "stockfish" / "stockfish")
     analysis_time_sec: float = 0.2
 
-    yolo_model_path: Path = PROJECT_ROOT / "vision" / "models" / "best.pt"
     calibration_path: Path = BACKEND_DIR / "data" / "calibration.json"
     detection_min_confidence: float = 0.6
     camera_capture_timeout_sec: float = 20.0

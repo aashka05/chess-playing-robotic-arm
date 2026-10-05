@@ -1,4 +1,5 @@
 import 'package:chess_robot/core/models.dart';
+import 'package:chess_robot/features/home/home_screen.dart';
 import 'package:chess_robot/shared/chess_board.dart';
 import 'package:chess_robot/shared/eval.dart';
 import 'package:chess_robot/shared/fen.dart';
@@ -63,7 +64,43 @@ void main() {
       home: Scaffold(body: SizedBox(width: 400, child: ChessBoard(fen: startFen, highlights: {'e2': Colors.red}))),
     ));
     // Each piece is drawn twice (outline + fill).
-    expect(find.text('♚'), findsNWidgets(4));
-    expect(find.text('♟'), findsNWidgets(32));
+    expect(find.text('♚\uFE0E'), findsNWidgets(4));
+    expect(find.text('♟\uFE0E'), findsNWidgets(32));
+  });
+
+  test('piece colours follow FEN case', () {
+    for (final s in 'KQRBNP'.split('')) {
+      expect(pieceGlyph(s).white, isTrue, reason: s);
+      expect(pieceGlyph(s.toLowerCase()).white, isFalse, reason: s.toLowerCase());
+      // Same glyph for both colours, always forced to text (not emoji) style.
+      expect(pieceGlyph(s).glyph, pieceGlyph(s.toLowerCase()).glyph);
+      expect(pieceGlyph(s).glyph, endsWith('\uFE0E'));
+    }
+    expect(pieceGlyph('P').glyph, '♟\uFE0E');
+    expect(pieceName('P'), 'white pawn');
+    expect(pieceName('p'), 'black pawn');
+  });
+
+  testWidgets('starting position: white pawns are drawn white, black pawns black', (tester) async {
+    await tester.pumpWidget(const MaterialApp(
+      home: Scaffold(body: SizedBox(width: 400, child: ChessBoard(fen: startFen))),
+    ));
+    // The fill layer is the Text with a plain colour (the outline uses a foreground Paint).
+    Iterable<Color?> fills(String glyph) => tester
+        .widgetList<Text>(find.text(glyph))
+        .where((t) => t.style?.foreground == null)
+        .map((t) => t.style?.color);
+    expect(fills('♟\uFE0E').where((c) => c == Colors.white).length, 8);
+    expect(fills('♟\uFE0E').where((c) => c == Colors.black).length, 8);
+    expect(fills('♚\uFE0E'), unorderedEquals([Colors.white, Colors.black]));
+  });
+
+  test('logout label depends on the role, not the username', () {
+    User user(String name, String role) =>
+        User.fromJson({'user_id': 1, 'username': name, 'email': 'a@b.c', 'role': role});
+    expect(logoutLabel(user('alice', 'admin')), 'Log out admin');
+    expect(logoutLabel(user('admin', 'client')), 'Log out');
+    expect(logoutLabel(user('bob', 'client')), 'Log out');
+    expect(logoutLabel(null), 'Log out');
   });
 }

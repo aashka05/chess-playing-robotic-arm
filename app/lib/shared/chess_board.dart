@@ -4,6 +4,17 @@ import 'fen.dart';
 
 const _glyphs = {'k': '♚', 'q': '♛', 'r': '♜', 'b': '♝', 'n': '♞', 'p': '♟'};
 
+// Variation selector 15 = "draw as text". Without it iOS/Android render ♟
+// (the only chess symbol with a default emoji form) as a black emoji that
+// ignores the text colour, so white pawns looked black.
+const _textPresentation = '\uFE0E';
+
+/// FEN symbol -> glyph to draw and its colour (uppercase = white).
+({String glyph, bool white}) pieceGlyph(String symbol) => (
+      glyph: '${_glyphs[symbol.toLowerCase()] ?? '?'}$_textPresentation',
+      white: symbol == symbol.toUpperCase(),
+    );
+
 /// Draws a position from a FEN string. Pure display, no interaction.
 class ChessBoard extends StatelessWidget {
   const ChessBoard({
@@ -92,8 +103,7 @@ class ChessBoard extends StatelessWidget {
   }
 
   Widget _piece(String symbol, double size) {
-    final white = symbol == symbol.toUpperCase();
-    final glyph = _glyphs[symbol.toLowerCase()] ?? '?';
+    final (:glyph, :white) = pieceGlyph(symbol);
     final fontSize = size * 0.78;
     // Solid glyph filled with the piece colour, outlined for contrast.
     return Stack(

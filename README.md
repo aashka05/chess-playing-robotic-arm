@@ -19,8 +19,6 @@ phone B ──REST + WS──▶ backend ◀──WS (capture requests) + upload
                           └── USB serial ──▶ Arduino arm
 ```
 
-For installation and running instructions, see [SETUP.md](SETUP.md).
-
 ---
 
 ## 1. Game flow
@@ -80,7 +78,8 @@ vision/
   rectify_board.py, map_pieces_to_squares.py, move_detection.py
                   your scripts, refactored to take numpy images; CLI kept
   move_matcher.py legal-move matching used by the backend
-  models/best.pt  YOLO weights
+runs/detect/merged-from-scratch2/weights/best.pt
+                  YOLO weights (the only model; MODEL_PATH in map_pieces_to_squares.py)
 controller/
   send_angles.py  your manual/vision-driven arm script
   planner.py      chess move → pick/place operations
@@ -97,8 +96,6 @@ app/lib/
   shared/         chess board, eval bar/graph, formatting
 requirements.txt  one venv for everything (includes the three below)
 ```
-
-The standalone scripts in `vision/`, `stockfish/` and `controller/` still run on their own; see [SETUP.md](SETUP.md#standalone-scripts).
 
 ### Decisions and limitations
 - Only one game can run at a time, because there is one board and one arm.

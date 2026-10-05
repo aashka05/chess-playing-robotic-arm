@@ -36,7 +36,7 @@ class _ServerSettingsDialogState extends ConsumerState<_ServerSettingsDialog> {
         TextField(
           controller: _controller,
           keyboardType: TextInputType.url,
-          decoration: const InputDecoration(labelText: 'Base URL', hintText: 'http://192.168.1.10:8000'),
+          decoration: const InputDecoration(labelText: 'Base URL', hintText: 'http://192.168.137.54:8000'),
         ),
         if (_status != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(_status!)),
       ]),

@@ -1,11 +1,13 @@
 import 'dart:async';
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
 import '../../core/ws_client.dart';
+import 'square_crop.dart';
 
 /// Phone A: mounted above the board. Waits for capture requests from the
 /// backend, takes a photo and uploads it (the AppUploadCameraSource).
@@ -72,7 +74,8 @@ class _CameraModeScreenState extends ConsumerState<CameraModeScreen> with Widget
     }
     try {
       final file = await camera.takePicture();
-      final bytes = await file.readAsBytes();
+      // The detector expects square photos, matching the square viewfinder.
+      final bytes = await compute(cropJpegToSquare, await file.readAsBytes());
       await ref.read(apiClientProvider).uploadCapture(requestId, bytes);
       _addLog('Photo sent (${(bytes.length / 1024).round()} KB)');
     } catch (e) {
@@ -120,14 +123,14 @@ class _CameraModeScreenState extends ConsumerState<CameraModeScreen> with Widget
         ListTile(
           leading: Icon(_connected ? Icons.cloud_done : Icons.cloud_off, color: _connected ? Colors.green : Colors.red),
           title: Text(_connected ? 'Connected. Waiting for capture requests.' : 'Connecting to backend…'),
-          subtitle: const Text('Keep this phone mounted above the board with the screen on.'),
+          subtitle: const Text('Keep this phone mounted above the board with the screen on. Fit the whole board inside the square.'),
         ),
         Expanded(
           child: _error != null
               ? Center(child: Text(_error!))
               : camera == null
                   ? const Center(child: CircularProgressIndicator())
-                  : Center(child: CameraPreview(camera)),
+                  : Center(child: _SquarePreview(camera)),
         ),
         SizedBox(
           height: 120,
@@ -137,6 +140,34 @@ class _CameraModeScreenState extends ConsumerState<CameraModeScreen> with Widget
           ),
         ),
       ]),
+    );
+  }
+}
+
+/// The camera preview cropped to its centered square, i.e. exactly the part
+/// of the frame that is uploaded.
+class _SquarePreview extends StatelessWidget {
+  const _SquarePreview(this.camera);
+
+  final CameraController camera;
+
+  @override
+  Widget build(BuildContext context) {
+    // previewSize is reported in landscape (width >= height).
+    final size = camera.value.previewSize ?? const Size(4, 3);
+    final portrait = MediaQuery.orientationOf(context) == Orientation.portrait;
+    return AspectRatio(
+      aspectRatio: 1,
+      child: ClipRect(
+        child: FittedBox(
+          fit: BoxFit.cover,
+          child: SizedBox(
+            width: portrait ? size.height : size.width,
+            height: portrait ? size.width : size.height,
+            child: CameraPreview(camera),
+          ),
+        ),
+      ),
     );
   }
 }

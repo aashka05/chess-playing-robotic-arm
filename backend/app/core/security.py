@@ -1,3 +1,5 @@
+import hashlib
+import secrets
 from datetime import UTC, datetime, timedelta
 
 import jwt
@@ -40,3 +42,13 @@ def decode_access_token(token: str) -> int | None:
         return int(payload["sub"])
     except (jwt.PyJWTError, KeyError, ValueError):
         return None
+
+
+def new_reset_token() -> str:
+    """256-bit random, URL-safe token for password resets (sent to the user, never stored)."""
+    return secrets.token_urlsafe(32)
+
+
+def hash_reset_token(token: str) -> str:
+    """What the DB stores. A fast hash is fine: the token is random, not a password."""
+    return hashlib.sha256(token.encode()).hexdigest()

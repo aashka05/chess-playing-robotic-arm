@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
 import '../../shared/widgets.dart';
 import 'auth_controller.dart';
+import 'password_reset_screens.dart';
 import 'server_settings_dialog.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -80,13 +81,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     decoration: const InputDecoration(labelText: 'Email'),
                     validator: (v) => (v == null || !v.contains('@')) ? 'Enter your email' : null,
                   ),
-                  TextFormField(
+                  PasswordField(
                     controller: _password,
-                    obscureText: true,
-                    decoration: const InputDecoration(labelText: 'Password'),
+                    autofillHints: [_register ? AutofillHints.newPassword : AutofillHints.password],
                     validator: (v) => (v == null || v.length < 6) ? 'At least 6 characters' : null,
                     onFieldSubmitted: (_) => _submit(),
                   ),
+                  if (!_register)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => ForgotPasswordScreen(email: _email.text.trim())),
+                        ),
+                        child: const Text('Forgot password?'),
+                      ),
+                    ),
                   const SizedBox(height: 24),
                   BusyButton(
                     label: _register ? 'Create account' : 'Log in',

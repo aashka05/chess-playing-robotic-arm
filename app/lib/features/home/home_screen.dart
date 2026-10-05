@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/models.dart';
 import '../../core/providers.dart';
 import '../../shared/widgets.dart';
 import '../auth/auth_controller.dart';
@@ -10,6 +11,9 @@ import '../history/history_list.dart';
 import '../history/history_providers.dart';
 import '../setup/camera_mode_screen.dart';
 import '../setup/setup_empty_screen.dart';
+
+/// Based on the role, not the username (an account may be *named* "admin").
+String logoutLabel(User? user) => user?.isAdmin == true ? 'Log out admin' : 'Log out';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -82,7 +86,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             itemBuilder: (_) => [
               const PopupMenuItem(value: 'camera', child: ListTile(leading: Icon(Icons.photo_camera), title: Text('Camera mode (phone A)'))),
               const PopupMenuItem(value: 'server', child: ListTile(leading: Icon(Icons.settings_ethernet), title: Text('Server settings'))),
-              PopupMenuItem(value: 'logout', child: ListTile(leading: const Icon(Icons.logout), title: Text('Log out ${user?.username ?? ''}'))),
+              PopupMenuItem(value: 'logout', child: ListTile(leading: const Icon(Icons.logout), title: Text(logoutLabel(user)))),
             ],
           ),
         ],
