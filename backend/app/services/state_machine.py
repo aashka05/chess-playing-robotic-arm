@@ -34,7 +34,9 @@ TRANSITIONS: dict[GameState, frozenset[GameState]] = {
     # Wrong position -> back to SETUP_PIECES; correct -> COLOR_SELECT.
     S.VERIFY: frozenset({S.SETUP_PIECES, S.COLOR_SELECT}),
     # Start: White -> human moves first; Black -> engine moves first.
-    S.COLOR_SELECT: frozenset({S.HUMAN_TURN, S.ENGINE_THINKING}),
+    # The setup wizard can also go back: re-check the pieces (VERIFY) or
+    # re-photograph the empty board (SETUP_PIECES, so pieces are re-checked).
+    S.COLOR_SELECT: frozenset({S.HUMAN_TURN, S.ENGINE_THINKING, S.VERIFY, S.SETUP_PIECES}),
     # Clock pressed -> detect; or resign/timeout/abort.
     S.HUMAN_TURN: frozenset({S.DETECTING, S.GAME_OVER}),
     # Not recognized -> back to HUMAN_TURN; recognized -> engine (or game over).

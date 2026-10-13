@@ -30,6 +30,7 @@ from app.services.detection_service import DetectionService, VisionError
 from app.services.engine_service import EngineService
 from app.services.errors import BadRequest, Conflict, NotFound, Unprocessable
 from app.services.game_rules import GameEnd, check_game_end, resignation_end, timeout_end
+from app.services.move_explainer import MoveExplanation, explain_attempt
 from app.services.state_machine import GameState as S
 from app.services.state_machine import StateMachine
 
@@ -128,6 +129,12 @@ class GameService:
         s = self._by_user.get(user_id)
         return s.game_id if s and s.sm.is_playing else None
 
+    def _notify_camera(self, event: dict) -> None:
+        """Tell the camera phone about the session (e.g. to reset the per-game flash)."""
+        notify = getattr(self.camera, "notify", None)
+        if notify is not None:
+            self._spawn(notify(event))
+
     def _spawn(self, coro: Coroutine) -> asyncio.Task:
         task = asyncio.create_task(coro)
         self._tasks.add(task)
@@ -152,6 +159,7 @@ class GameService:
         s = self._by_user.get(user_id)
         if s is not None and s.sm.is_setup:
             del self._by_user[user_id]
+            self._notify_camera({"type": "game_over"})
 
     async def _capture(self):
         try:
@@ -161,18 +169,20 @@ class GameService:
 
     async def calibrate_empty_board(self, user_id: int) -> dict:
         s = self._setup_session(user_id)
-        s.sm.require(S.SETUP_EMPTY)
+        # Also allowed after going back in the wizard; the pieces must then be re-checked.
+        s.sm.require(S.SETUP_EMPTY, S.SETUP_PIECES, S.COLOR_SELECT)
         image = await self._capture()
         try:
             info = await self.detection.calibrate(image, s.initial_fen)
         except VisionError as exc:
             raise Unprocessable(str(exc)) from exc
-        s.sm.transition(S.SETUP_PIECES)
+        if s.sm.state != S.SETUP_PIECES:
+            s.sm.transition(S.SETUP_PIECES)
         return {"state": s.sm.state, **info}
 
     async def verify_pieces(self, user_id: int) -> dict:
         s = self._setup_session(user_id)
-        s.sm.require(S.SETUP_PIECES)
+        s.sm.require(S.SETUP_PIECES, S.COLOR_SELECT)  # COLOR_SELECT: re-check after going back
         s.sm.transition(S.VERIFY)
         try:
             image = await self.camera.capture()
@@ -304,7 +314,10 @@ class GameService:
             if s.sm.is_over:
                 return
             if not result.recognized:
-                self._reject_move(s, result.reason, _REJECT_MESSAGES.get(result.reason, ""), result)
+                explanation = explain_attempt(s.board, result.seen)
+                message = (_REJECT_MESSAGES.get(result.reason, "") if explanation.kind == "no_change"
+                           else explanation.message)
+                self._reject_move(s, result.reason, message, result, explanation)
                 return
             move, confidence = result.move, result.confidence
 
@@ -317,14 +330,21 @@ class GameService:
         s.sm.transition(S.ENGINE_THINKING)
         await self._robot_turn(s)
 
-    def _reject_move(self, s: Session, reason: str, message: str, result=None) -> None:
-        """Never apply an unrecognized move: refund the robot, hand the turn back."""
+    def _reject_move(
+        self, s: Session, reason: str, message: str, result=None, explanation: MoveExplanation | None = None
+    ) -> None:
+        """Never apply an unrecognized or illegal move: refund the robot, hand the turn back."""
         s.clock.stop()
         s.clock.set_remaining(s.robot_color, s.robot_ms_at_press)
         s.clock.start(s.user_color)
         s.sm.transition(S.HUMAN_TURN)
-        s.message = "Move not recognized. Restore the position, make your move again and press the clock."
-        event = {"type": "move_not_recognized", "reason": reason, "message": message}
+        if explanation is not None and explanation.kind == "illegal":
+            s.message = f"{explanation.message} Put the pieces back, play a legal move and press the clock."
+        else:
+            s.message = "Move not recognized. Restore the position, make your move again and press the clock."
+        event = {"type": "move_not_recognized", "reason": reason, "message": message, "fen": s.board.fen()}
+        if explanation is not None:
+            event["explanation"] = explanation.to_dict()
         if result is not None:
             event.update(
                 confidence=result.confidence,
@@ -458,6 +478,7 @@ class GameService:
         s.termination_reason = end.reason
         s.message = _END_MESSAGES.get(end.detail, end.reason.value)
         s.manual_done.set()  # release a pipeline waiting for the user
+        self._notify_camera({"type": "game_over"})
         # Don't interrupt the arm mid-move; the pipeline notices GAME_OVER afterwards.
         current = asyncio.current_task()
         if s.pipeline is not None and s.pipeline is not current and state_before != S.ARM_EXECUTING:

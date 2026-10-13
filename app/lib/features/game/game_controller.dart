@@ -8,11 +8,40 @@ import '../../core/ws_client.dart';
 
 /// A one-off message for the user (e.g. "move not recognized").
 class GameNotice {
-  const GameNotice(this.id, this.title, this.message);
+  const GameNotice(this.id, this.title, this.message, {this.fen, this.squares = const []});
 
   final int id;
   final String title;
   final String message;
+
+  /// Last valid position, with [squares] to highlight on it (the attempted
+  /// move, or the squares that differ when the move couldn't be worked out).
+  final String? fen;
+  final List<String> squares;
+}
+
+/// Turns a backend `move_not_recognized` event into a notice.
+GameNotice moveRejectedNotice(int id, Json m) {
+  final explanation = m['explanation'] as Json?;
+  final kind = explanation?['kind'] as String?;
+  final message = (m['message'] as String?) ?? '';
+  final illegal = kind == 'illegal';
+  return GameNotice(
+    id,
+    illegal ? 'Illegal move' : 'Move not recognized',
+    [
+      if (message.isNotEmpty) message,
+      illegal
+          ? 'Put the pieces back as shown, play a legal move and press your clock again.'
+          : 'Restore the position, make your move clearly and press your clock again.',
+    ].join('\n\n'),
+    fen: m['fen'] as String?,
+    squares: switch (kind) {
+      'illegal' || 'legal' => [explanation!['from_square'] as String, explanation['to_square'] as String],
+      'unclear' => [for (final s in explanation!['changed_squares'] as List) s as String],
+      _ => const [],
+    },
+  );
 }
 
 class GameView {
@@ -83,17 +112,11 @@ class GameController extends Notifier<GameView> {
           for (final mv in live.moves) mv.ply == ply ? mv.withEval(m['eval_cp'] as int?, m['eval_mate'] as int?) : mv,
         ]));
       case 'move_not_recognized':
-        _notice('Move not recognized', [
-          if ((m['message'] as String?)?.isNotEmpty ?? false) m['message'] as String,
-          'Restore the position, make your move clearly and press your clock again.',
-        ].join('\n\n'));
+        state = state.copyWith(notice: moveRejectedNotice(++_noticeCounter, m));
       case 'error':
         state = state.copyWith(error: m['message'] as String?);
     }
   }
-
-  void _notice(String title, String message) =>
-      state = state.copyWith(notice: GameNotice(++_noticeCounter, title, message));
 
   Future<void> pressClock() => ref.read(apiClientProvider).pressClock(gameId);
 

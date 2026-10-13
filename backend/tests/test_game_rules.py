@@ -70,3 +70,28 @@ def test_resignation():
     end = resignation_end()
     assert end.result == GameResult.loss
     assert end.reason == TerminationReason.resignation
+
+
+def test_replay_builds_san_and_fen_for_every_ply():
+    from app.services.game_rules import replay
+
+    positions = replay(chess.STARTING_FEN, ["e2e4", "e7e5", "g1f3"])
+    assert [san for san, _ in positions] == ["e4", "e5", "Nf3"]
+    assert positions[-1][1] == play(chess.Board(), "e4", "e5", "Nf3").fen()
+
+
+def test_replay_handles_castling_and_promotion():
+    from app.services.game_rules import replay
+
+    positions = replay("4k3/P7/8/8/8/8/8/4K2R w K - 0 1", ["e1g1", "e8d7", "a7a8q"])
+    assert [san for san, _ in positions] == ["O-O", "Kd7", "a8=Q"]
+    assert positions[-1][1].startswith("Q7/3k4/8/8/8/8/8/5RK1 b")
+
+
+def test_replay_rejects_an_illegal_move():
+    import pytest
+
+    from app.services.game_rules import replay
+
+    with pytest.raises(ValueError, match="ply 2"):
+        replay(chess.STARTING_FEN, ["e2e4", "e2e4"])

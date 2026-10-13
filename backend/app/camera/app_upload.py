@@ -64,6 +64,14 @@ class AppUploadCameraSource:
             finally:
                 self._pending.pop(request_id, None)
 
+    async def notify(self, event: dict) -> None:
+        """Send a session event (e.g. game over) to every connected camera phone."""
+        for ws in list(self._sockets):
+            try:
+                await ws.send_json(event)
+            except RuntimeError as exc:  # socket closed meanwhile
+                log.info("Could not notify a camera phone: %s", exc)
+
     def deliver(self, request_id: str, data: bytes) -> bool:
         """Called by the upload endpoint. Returns False if nobody is waiting."""
         future = self._pending.get(request_id)

@@ -40,6 +40,7 @@ dependencies:
   shared_preferences: ^2.5.5
   camera: ^0.12.0+2
   image: ^4.10.1
+  wakelock_plus: ^1.7.0
 
 dev_dependencies:
   flutter_test:
@@ -62,6 +63,14 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  # Chess glyphs U+2654-265F subset from Noto Sans Symbols 2 (OFL, see
+  # assets/fonts/ChessPieces-OFL.txt). Bundled so no piece falls back to an
+  # emoji font, which ignores the text colour.
+  fonts:
+    - family: ChessPieces
+      fonts:
+        - asset: assets/fonts/ChessPieces.ttf
 
   # To add assets to your application, add an assets section, like this:
   # assets:

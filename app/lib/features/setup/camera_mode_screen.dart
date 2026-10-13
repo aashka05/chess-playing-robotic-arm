@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
 import '../../core/ws_client.dart';
+import '../../shared/wake_lock.dart';
 import 'square_crop.dart';
 
 /// Phone A: mounted above the board. Waits for capture requests from the
@@ -25,12 +26,21 @@ class _CameraModeScreenState extends ConsumerState<CameraModeScreen> with Widget
   Timer? _ping;
   bool _connected = false;
   String? _error;
+
+  /// Manual flash (torch) for the current game. Off by default, never turned
+  /// on automatically, not persisted; reset when the backend says the game ended.
+  bool _torch = false;
+
+  /// False once the camera has refused torch mode (no flash unit).
+  bool _torchSupported = true;
   final _log = <String>[];
+  final _wakeLock = ScreenWakeLock();
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _wakeLock.acquire(); // the phone sits above the board for the whole game
     _initCamera();
     _connect();
   }
@@ -47,6 +57,8 @@ class _CameraModeScreenState extends ConsumerState<CameraModeScreen> with Widget
       await controller.setFlashMode(FlashMode.off);
       if (!mounted) return controller.dispose();
       setState(() => _camera = controller);
+      // Re-initialised after the app was in the background: restore the torch.
+      if (_torch) await _setTorch(true);
     } catch (e) {
       setState(() => _error = 'Camera error: $e');
     }
@@ -59,11 +71,37 @@ class _CameraModeScreenState extends ConsumerState<CameraModeScreen> with Widget
       onConnectionChange: (c) => mounted ? setState(() => _connected = c) : null,
     );
     _sub = socket.messages.listen((m) {
-      if (m['type'] == 'capture_request') _capture(m['request_id'] as String);
+      switch (m['type']) {
+        case 'capture_request':
+          _capture(m['request_id'] as String);
+        case 'game_over':
+          if (_torch) {
+            _setTorch(false);
+            _addLog('Game over: flash turned off');
+          }
+      }
     });
     socket.connect();
     _socket = socket;
     _ping = Timer.periodic(const Duration(seconds: 20), (_) => socket.send({'type': 'ping'}));
+  }
+
+  /// Torch mode keeps the light on, so every capture (and the preview) is lit
+  /// the same way; the photo still goes through the normal square crop.
+  Future<void> _setTorch(bool on) async {
+    final camera = _camera;
+    if (camera == null || !camera.value.isInitialized) return;
+    try {
+      await camera.setFlashMode(on ? FlashMode.torch : FlashMode.off);
+      if (mounted) setState(() => _torch = on);
+    } on CameraException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _torch = false;
+        if (on) _torchSupported = false;
+      });
+      _addLog('Flash unavailable: ${e.description ?? e.code}');
+    }
   }
 
   Future<void> _capture(String requestId) async {
@@ -107,6 +145,7 @@ class _CameraModeScreenState extends ConsumerState<CameraModeScreen> with Widget
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _wakeLock.dispose();
     _ping?.cancel();
     _sub?.cancel();
     _socket?.close();
@@ -118,7 +157,22 @@ class _CameraModeScreenState extends ConsumerState<CameraModeScreen> with Widget
   Widget build(BuildContext context) {
     final camera = _camera;
     return Scaffold(
-      appBar: AppBar(title: const Text('Camera mode')),
+      appBar: AppBar(
+        title: const Text('Camera mode'),
+        actions: [
+          IconButton(
+            tooltip: !_torchSupported
+                ? "Flash isn't available on this camera"
+                : _torch
+                    ? 'Turn flash off'
+                    : 'Turn flash on (this game only)',
+            isSelected: _torch,
+            icon: const Icon(Icons.flash_off),
+            selectedIcon: const Icon(Icons.flash_on),
+            onPressed: camera == null || !_torchSupported ? null : () => _setTorch(!_torch),
+          ),
+        ],
+      ),
       body: Column(children: [
         ListTile(
           leading: Icon(_connected ? Icons.cloud_done : Icons.cloud_off, color: _connected ? Colors.green : Colors.red),

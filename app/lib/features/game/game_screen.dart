@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models.dart';
+import '../../shared/board_theme.dart';
 import '../../shared/chess_board.dart';
 import '../../shared/format.dart';
+import '../../shared/wake_lock.dart';
 import '../../shared/widgets.dart';
 import '../replay/replay_screen.dart';
 import 'game_controller.dart';
@@ -23,10 +25,13 @@ class GameScreen extends ConsumerStatefulWidget {
 class _GameScreenState extends ConsumerState<GameScreen> {
   Timer? _ticker;
   bool _pressing = false;
+  final _wakeLock = ScreenWakeLock();
 
   @override
   void initState() {
     super.initState();
+    // Keep the screen on while the game runs; released when it ends or we leave.
+    _wakeLock.acquire();
     // Repaint the running clock between server updates.
     _ticker = Timer.periodic(const Duration(milliseconds: 100), (_) => setState(() {}));
   }
@@ -34,6 +39,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   @override
   void dispose() {
     _ticker?.cancel();
+    _wakeLock.dispose();
     super.dispose();
   }
 
@@ -72,14 +78,32 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   @override
   Widget build(BuildContext context) {
     final view = ref.watch(gameControllerProvider(widget.gameId));
+    ref.listen(gameControllerProvider(widget.gameId).select((v) => v.live?.isOver), (_, over) {
+      if (over == true) _wakeLock.release(); // finished, resigned or aborted
+    });
     ref.listen(gameControllerProvider(widget.gameId).select((v) => v.notice), (_, notice) {
       if (notice == null) return;
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          icon: const Icon(Icons.help_outline, size: 40),
+          icon: Icon(notice.title == 'Illegal move' ? Icons.block : Icons.help_outline, size: 40),
           title: Text(notice.title),
-          content: Text(notice.message),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Text(notice.message),
+              if (notice.fen != null && notice.squares.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: 240,
+                  child: ChessBoard(
+                    fen: notice.fen!,
+                    flipped: view.live?.userColor == 'black',
+                    highlights: {for (final sq in notice.squares) sq: const Color(0x99E53935)},
+                  ),
+                ),
+              ],
+            ]),
+          ),
           actions: [FilledButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
         ),
       );
@@ -90,6 +114,11 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       appBar: AppBar(
         title: Text(live == null ? 'Game' : 'Game #${live.gameId} · ${capitalize(live.difficulty)}'),
         actions: [
+          IconButton(
+            tooltip: 'Board theme',
+            icon: const Icon(Icons.palette_outlined),
+            onPressed: () => showBoardThemePicker(context),
+          ),
           if (live != null && !live.isOver) ...[
             TextButton.icon(
               icon: const Icon(Icons.flag),

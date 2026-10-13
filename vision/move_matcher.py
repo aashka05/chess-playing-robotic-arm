@@ -72,6 +72,8 @@ class MatchResult:
     candidates: list[Candidate] = field(default_factory=list)
     # Squares where the best candidate disagrees with the camera.
     mismatched_squares: list[str] = field(default_factory=list)
+    # What the camera saw: square name -> FEN symbol (used to explain rejections).
+    seen: dict[str, str] = field(default_factory=dict)
 
 
 def match_move(
@@ -88,8 +90,9 @@ def match_move(
         after.push(move)
         scored.append((position_score(after, detections), move, after))
 
+    seen = {square: symbol for square, (symbol, _) in detections.items()}
     if not scored:
-        return MatchResult(False, None, 0.0, "no_legal_moves", null_score / 64)
+        return MatchResult(False, None, 0.0, "no_legal_moves", null_score / 64, seen=seen)
 
     scored.sort(key=lambda item: item[0], reverse=True)
     best_score, best_move, best_board = scored[0]
@@ -131,6 +134,7 @@ def match_move(
         global_agreement=round(global_agreement, 3),
         candidates=candidates,
         mismatched_squares=mismatched,
+        seen=seen,
     )
 
 

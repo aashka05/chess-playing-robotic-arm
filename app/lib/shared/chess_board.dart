@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 
+import 'board_theme.dart';
 import 'fen.dart';
 
+/// The piece theme: one solid glyph per piece type, filled with the side's
+/// colour. Every piece, pawns included, is drawn from the bundled
+/// [pieceFontFamily]; system fonts can't be trusted here because ♟ is the
+/// one chess symbol with an emoji form, which ignores the text colour.
+const pieceFontFamily = 'ChessPieces';
 const _glyphs = {'k': '♚', 'q': '♛', 'r': '♜', 'b': '♝', 'n': '♞', 'p': '♟'};
-
-// Variation selector 15 = "draw as text". Without it iOS/Android render ♟
-// (the only chess symbol with a default emoji form) as a black emoji that
-// ignores the text colour, so white pawns looked black.
-const _textPresentation = '\uFE0E';
 
 /// FEN symbol -> glyph to draw and its colour (uppercase = white).
 ({String glyph, bool white}) pieceGlyph(String symbol) => (
-      glyph: '${_glyphs[symbol.toLowerCase()] ?? '?'}$_textPresentation',
+      glyph: _glyphs[symbol.toLowerCase()] ?? '?',
       white: symbol == symbol.toUpperCase(),
     );
 
@@ -24,6 +25,7 @@ class ChessBoard extends StatelessWidget {
     this.highlights = const {},
     this.lastMove,
     this.showCoordinates = true,
+    this.theme,
   });
 
   final String fen;
@@ -34,15 +36,16 @@ class ChessBoard extends StatelessWidget {
   /// Square name -> overlay colour (e.g. wrong squares in setup).
   final Map<String, Color> highlights;
 
-  /// UCI of the last move, highlighted in yellow.
+  /// UCI of the last move, highlighted with the theme's last-move colour.
   final String? lastMove;
   final bool showCoordinates;
 
-  static const light = Color(0xFFEEDDBB);
-  static const dark = Color(0xFFB58863);
+  /// Square colours; defaults to the user's theme from [BoardThemeScope].
+  final BoardTheme? theme;
 
   @override
   Widget build(BuildContext context) {
+    final theme = this.theme ?? BoardThemeScope.of(context);
     final pieces = piecesFromFen(fen);
     final lastSquares = lastMove == null || lastMove!.length < 4
         ? const <String>{}
@@ -60,6 +63,8 @@ class ChessBoard extends StatelessWidget {
                   for (var col = 0; col < 8; col++)
                     _square(
                       name: flipped ? '${files[7 - col]}${row + 1}' : '${files[col]}${8 - row}',
+                      theme: theme,
+                      index: row * 8 + col,
                       isLight: (row + col).isEven,
                       size: size,
                       pieces: pieces,
@@ -77,6 +82,8 @@ class ChessBoard extends StatelessWidget {
 
   Widget _square({
     required String name,
+    required BoardTheme theme,
+    required int index,
     required bool isLight,
     required double size,
     required Map<String, String> pieces,
@@ -85,14 +92,15 @@ class ChessBoard extends StatelessWidget {
     required bool fileLabel,
   }) {
     final piece = pieces[name];
-    final labelStyle = TextStyle(fontSize: size * 0.18, color: isLight ? dark : light, fontWeight: FontWeight.w600);
+    final labelStyle = TextStyle(
+        fontSize: size * 0.18, color: theme.coordinateOn(lightSquare: isLight), fontWeight: FontWeight.w600);
     return Container(
       width: size,
       height: size,
-      color: isLight ? light : dark,
+      decoration: theme.square(isLight: isLight, index: index),
       child: Stack(
         children: [
-          if (lastSquares.contains(name)) Positioned.fill(child: Container(color: const Color(0x66F6F669))),
+          if (lastSquares.contains(name)) Positioned.fill(child: Container(color: theme.lastMove)),
           if (highlights[name] != null) Positioned.fill(child: Container(color: highlights[name])),
           if (showCoordinates && rankLabel) Positioned(left: 2, top: 1, child: Text(name[1], style: labelStyle)),
           if (showCoordinates && fileLabel) Positioned(right: 2, bottom: 0, child: Text(name[0], style: labelStyle)),
@@ -112,6 +120,7 @@ class ChessBoard extends StatelessWidget {
         Text(
           glyph,
           style: TextStyle(
+            fontFamily: pieceFontFamily,
             fontSize: fontSize,
             height: 1,
             foreground: Paint()
@@ -120,7 +129,9 @@ class ChessBoard extends StatelessWidget {
               ..color = white ? Colors.black : Colors.white70,
           ),
         ),
-        Text(glyph, style: TextStyle(fontSize: fontSize, height: 1, color: white ? Colors.white : Colors.black)),
+        Text(glyph,
+            style: TextStyle(
+                fontFamily: pieceFontFamily, fontSize: fontSize, height: 1, color: white ? Colors.white : Colors.black)),
       ],
     );
   }

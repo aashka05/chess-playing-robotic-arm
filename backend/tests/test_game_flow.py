@@ -244,3 +244,68 @@ async def test_camera_disconnected_during_setup():
     svc.start_setup(1, "a")
     with pytest.raises(Unprocessable):
         await svc.calibrate_empty_board(1)
+
+
+async def test_setup_wizard_can_go_back_and_redo_steps():
+    svc, _, camera = make_service([])
+    await setup_session(svc, camera)
+    s = svc.session_for_user(1)
+    # Back to step 2 from the options: re-check the pieces.
+    result = await svc.verify_pieces(1)
+    assert result["correct"] and s.sm.state == S.COLOR_SELECT
+    # Back to step 1: re-photographing the board means the pieces must be re-checked.
+    await svc.calibrate_empty_board(1)
+    assert s.sm.state == S.SETUP_PIECES
+    with pytest.raises(WrongState):
+        await svc.start_game(1, Color.white, Difficulty.easy, 60, 0)
+    await svc.calibrate_empty_board(1)  # retake again from step 2
+    assert (await svc.verify_pieces(1))["correct"]
+    await svc.start_game(1, Color.white, Difficulty.easy, 60, 0)
+    assert s.sm.state == S.HUMAN_TURN
+
+
+async def test_illegal_move_is_rejected_with_the_reason():
+    svc, repo, camera = make_service(["e7e5"])
+    await setup_session(svc, camera)
+    s = await svc.start_game(1, Color.white, Difficulty.easy, 300, 0)
+    events = svc.subscribe(s)
+    # The player slides the a1 rook "through" the a2 pawn to a3.
+    camera.table.set_piece_at(chess.A3, camera.table.remove_piece_at(chess.A1))
+    await svc.press_clock(1, s.game_id)
+    await wait_for(svc, s, S.HUMAN_TURN)
+    assert s.board.move_stack == [] and repo.moves == {}
+    rejected = []
+    while not events.empty():
+        e = events.get_nowait()
+        if e["type"] == "move_not_recognized":
+            rejected.append(e)
+    explanation = rejected[0]["explanation"]
+    assert explanation["kind"] == "illegal" and explanation["reason"] == "blocked"
+    assert (explanation["from_square"], explanation["to_square"]) == ("a1", "a3")
+    assert rejected[0]["message"] == (
+        "Illegal move: white rook from a1 to a3. The path is blocked by the white pawn on a2.")
+    assert rejected[0]["fen"] == chess.STARTING_FEN
+    assert s.message.startswith("Illegal move: white rook from a1 to a3.")
+
+
+async def test_camera_phone_is_told_when_the_game_ends():
+    camera = FakeCamera()
+    camera.events = []
+
+    async def notify(event):
+        camera.events.append(event)
+
+    camera.notify = notify
+    svc, _, _ = make_service([], camera)
+    await setup_session(svc, camera)
+    s = await svc.start_game(1, Color.white, Difficulty.easy, 300, 0)
+    assert camera.events == []
+    await svc.resign(1, s.game_id)
+    await asyncio.sleep(0)
+    assert camera.events == [{"type": "game_over"}]
+
+    # Abandoning a setup also ends that game's flash setting.
+    svc.start_setup(1, "alice")
+    svc.cancel_setup(1)
+    await asyncio.sleep(0)
+    assert camera.events == [{"type": "game_over"}] * 2

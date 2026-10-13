@@ -6,20 +6,25 @@ import '../../core/providers.dart';
 import '../../shared/chess_board.dart';
 import '../../shared/fen.dart';
 import '../../shared/widgets.dart';
-import 'game_options_screen.dart';
 import 'setup_step.dart';
 
 const _startFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
 /// Setup 2: set up the pieces; loop until the camera sees the correct position.
-class SetupPiecesScreen extends ConsumerStatefulWidget {
-  const SetupPiecesScreen({super.key});
+class SetupPiecesStep extends ConsumerStatefulWidget {
+  const SetupPiecesStep({super.key, required this.onResult, required this.done});
+
+  /// Called after every check: true if the camera saw the right position.
+  final ValueChanged<bool> onResult;
+
+  /// Already verified (the user came back to this step).
+  final bool done;
 
   @override
-  ConsumerState<SetupPiecesScreen> createState() => _SetupPiecesScreenState();
+  ConsumerState<SetupPiecesStep> createState() => _SetupPiecesStepState();
 }
 
-class _SetupPiecesScreenState extends ConsumerState<SetupPiecesScreen> {
+class _SetupPiecesStepState extends ConsumerState<SetupPiecesStep> {
   bool _busy = false;
   VerifyResult? _last;
 
@@ -28,11 +33,10 @@ class _SetupPiecesScreenState extends ConsumerState<SetupPiecesScreen> {
     try {
       final result = await ref.read(apiClientProvider).verifyPieces();
       setState(() => _last = result);
-      if (result.correct && mounted) {
-        final gameId = await Navigator.push<int>(context, MaterialPageRoute(builder: (_) => const GameOptionsScreen()));
-        if (gameId != null && mounted) Navigator.pop(context, gameId);
-      }
+      widget.onResult(result.correct);
     } catch (e) {
+      // The backend drops back to "pieces not verified" when the check fails.
+      widget.onResult(false);
       if (mounted) showError(context, e);
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -43,14 +47,15 @@ class _SetupPiecesScreenState extends ConsumerState<SetupPiecesScreen> {
   Widget build(BuildContext context) {
     final wrong = _last != null && !_last!.correct;
     return SetupStep(
-      step: 2,
       title: wrong ? 'Some pieces are wrong' : 'Set up the pieces',
       instructions: wrong
-          ? 'Fix the squares highlighted in red so the board matches the position below, then press OK.'
-          : 'Set up the pieces in the starting position, then press OK.',
+          ? 'Fix the squares highlighted in red so the board matches the position below, then check again.'
+          : widget.done
+              ? 'The camera confirmed the starting position. Press Next to continue.'
+              : 'Set up the pieces in the starting position, then press Check position.',
       busy: _busy,
       onOk: _verify,
-      okLabel: wrong ? 'OK, check again' : 'OK',
+      okLabel: wrong || widget.done ? 'Check again' : 'Check position',
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         ChessBoard(
           fen: _last?.expectedFen ?? _startFen,

@@ -58,3 +58,20 @@ def timeout_end(board: chess.Board, flagged: chess.Color, user_color: chess.Colo
 def resignation_end() -> GameEnd:
     # Only the human can resign.
     return GameEnd(GameResult.loss, TerminationReason.resignation, "resignation")
+
+
+def replay(initial_fen: str, ucis: list[str]) -> list[tuple[str, str]]:
+    """(SAN, FEN after) for every move, rebuilt from `initial_fen` with python-chess.
+
+    Raises ValueError if a move is illegal in the replayed position.
+    """
+    board = chess.Board(initial_fen)
+    positions = []
+    for ply, uci in enumerate(ucis, start=1):
+        move = chess.Move.from_uci(uci)
+        if not board.is_legal(move):
+            raise ValueError(f"Move {uci} at ply {ply} is illegal in {board.fen()}")
+        san = board.san(move)
+        board.push(move)
+        positions.append((san, board.fen()))
+    return positions

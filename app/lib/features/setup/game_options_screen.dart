@@ -23,15 +23,15 @@ const _presets = [
   _TimeControl(30, 0),
 ];
 
-/// Setup 3: colour, difficulty and time control. Pops with the game id.
-class GameOptionsScreen extends ConsumerStatefulWidget {
-  const GameOptionsScreen({super.key});
+/// Setup 3: colour, difficulty and time control. Pops the wizard with the game id.
+class GameOptionsStep extends ConsumerStatefulWidget {
+  const GameOptionsStep({super.key});
 
   @override
-  ConsumerState<GameOptionsScreen> createState() => _GameOptionsScreenState();
+  ConsumerState<GameOptionsStep> createState() => _GameOptionsStepState();
 }
 
-class _GameOptionsScreenState extends ConsumerState<GameOptionsScreen> {
+class _GameOptionsStepState extends ConsumerState<GameOptionsStep> {
   String _color = 'white';
   String _difficulty = 'medium';
   int _minutes = 10;
@@ -58,61 +58,56 @@ class _GameOptionsScreenState extends ConsumerState<GameOptionsScreen> {
   @override
   Widget build(BuildContext context) {
     final title = Theme.of(context).textTheme.titleMedium;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Setup 3 of 3')),
-      body: SafeArea(
-        child: ListView(padding: const EdgeInsets.all(20), children: [
-          Text('Board is ready ✓', style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: 24),
-          Text('Your colour', style: title),
-          const SizedBox(height: 8),
-          SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'white', label: Text('White'), icon: Icon(Icons.circle_outlined)),
-              ButtonSegment(value: 'black', label: Text('Black'), icon: Icon(Icons.circle)),
-            ],
-            selected: {_color},
-            onSelectionChanged: (s) => setState(() => _color = s.first),
-          ),
-          if (_color == 'black')
-            const Padding(
-              padding: EdgeInsets.only(top: 6),
-              child: Text('The robot plays White and moves first.'),
-            ),
-          const SizedBox(height: 24),
-          Text('Difficulty', style: title),
-          const SizedBox(height: 8),
-          SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'easy', label: Text('Easy')),
-              ButtonSegment(value: 'medium', label: Text('Medium')),
-              ButtonSegment(value: 'hard', label: Text('Hard')),
-            ],
-            selected: {_difficulty},
-            onSelectionChanged: (s) => setState(() => _difficulty = s.first),
-          ),
-          const SizedBox(height: 24),
-          Text('Time control (minutes + increment seconds)', style: title),
-          const SizedBox(height: 8),
-          Wrap(spacing: 8, runSpacing: 4, children: [
-            for (final p in _presets)
-              ChoiceChip(
-                label: Text(p.label),
-                selected: p.minutes == _minutes && p.increment == _increment,
-                onSelected: (_) => setState(() {
-                  _minutes = p.minutes;
-                  _increment = p.increment;
-                }),
-              ),
-          ]),
-          const SizedBox(height: 8),
-          _Stepper(label: 'Minutes', value: _minutes, min: 1, max: 180, onChanged: (v) => setState(() => _minutes = v)),
-          _Stepper(label: 'Increment (s)', value: _increment, min: 0, max: 60, onChanged: (v) => setState(() => _increment = v)),
-          const SizedBox(height: 32),
-          BusyButton(label: 'Start', icon: Icons.timer, busy: _busy, onPressed: _start),
-        ]),
+    return ListView(padding: const EdgeInsets.all(20), children: [
+      Text('Board is ready ✓', style: Theme.of(context).textTheme.headlineSmall),
+      const SizedBox(height: 24),
+      Text('Your colour', style: title),
+      const SizedBox(height: 8),
+      SegmentedButton<String>(
+        segments: const [
+          ButtonSegment(value: 'white', label: Text('White'), icon: Icon(Icons.circle_outlined)),
+          ButtonSegment(value: 'black', label: Text('Black'), icon: Icon(Icons.circle)),
+        ],
+        selected: {_color},
+        onSelectionChanged: (s) => setState(() => _color = s.first),
       ),
-    );
+      if (_color == 'black')
+        const Padding(
+          padding: EdgeInsets.only(top: 6),
+          child: Text('The robot plays White and moves first.'),
+        ),
+      const SizedBox(height: 24),
+      Text('Difficulty', style: title),
+      const SizedBox(height: 8),
+      SegmentedButton<String>(
+        segments: const [
+          ButtonSegment(value: 'easy', label: Text('Easy')),
+          ButtonSegment(value: 'medium', label: Text('Medium')),
+          ButtonSegment(value: 'hard', label: Text('Hard')),
+        ],
+        selected: {_difficulty},
+        onSelectionChanged: (s) => setState(() => _difficulty = s.first),
+      ),
+      const SizedBox(height: 24),
+      Text('Time control (minutes + increment seconds)', style: title),
+      const SizedBox(height: 8),
+      Wrap(spacing: 8, runSpacing: 4, children: [
+        for (final p in _presets)
+          ChoiceChip(
+            label: Text(p.label),
+            selected: p.minutes == _minutes && p.increment == _increment,
+            onSelected: (_) => setState(() {
+              _minutes = p.minutes;
+              _increment = p.increment;
+            }),
+          ),
+      ]),
+      const SizedBox(height: 8),
+      _Stepper(label: 'Minutes', value: _minutes, min: 1, max: 180, onChanged: (v) => setState(() => _minutes = v)),
+      _Stepper(label: 'Increment (s)', value: _increment, min: 0, max: 60, onChanged: (v) => setState(() => _increment = v)),
+      const SizedBox(height: 32),
+      BusyButton(label: 'Start', icon: Icons.timer, busy: _busy, onPressed: _start),
+    ]);
   }
 }
 

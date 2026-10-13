@@ -27,3 +27,23 @@ async def test_uploaded_landscape_photo_arrives_square():
     ok, jpeg = cv2.imencode(".jpg", np.zeros((480, 640, 3), np.uint8))
     assert camera.deliver("r1", jpeg.tobytes())
     assert (await future).shape[:2] == (480, 480)
+
+
+async def test_notify_reaches_every_phone_and_survives_closed_sockets():
+    from app.camera.app_upload import AppUploadCameraSource
+
+    class FakeSocket:
+        def __init__(self, closed=False):
+            self.closed, self.sent = closed, []
+
+        async def send_json(self, event):
+            if self.closed:
+                raise RuntimeError("closed")
+            self.sent.append(event)
+
+    source = AppUploadCameraSource()
+    open_ws, closed_ws = FakeSocket(), FakeSocket(closed=True)
+    source.register(closed_ws)
+    source.register(open_ws)
+    await source.notify({"type": "game_over"})
+    assert open_ws.sent == [{"type": "game_over"}]

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models.dart';
 import '../../core/providers.dart';
+import '../../shared/board_theme.dart';
 import '../../shared/widgets.dart';
 import '../auth/auth_controller.dart';
 import '../auth/server_settings_dialog.dart';
@@ -10,7 +11,7 @@ import '../game/game_screen.dart';
 import '../history/history_list.dart';
 import '../history/history_providers.dart';
 import '../setup/camera_mode_screen.dart';
-import '../setup/setup_empty_screen.dart';
+import '../setup/setup_wizard.dart';
 
 /// Based on the role, not the username (an account may be *named* "admin").
 String logoutLabel(User? user) => user?.isAdmin == true ? 'Log out admin' : 'Log out';
@@ -49,11 +50,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _playNewGame() async {
     setState(() => _busy = true);
     try {
-      final status = await ref.read(apiClientProvider).startSetup();
+      await ref.read(apiClientProvider).startSetup();
       if (!mounted) return;
       final gameId = await Navigator.push<int>(
         context,
-        MaterialPageRoute(builder: (_) => SetupEmptyScreen(initialStatus: status)),
+        MaterialPageRoute(builder: (_) => const SetupWizardScreen()),
       );
       if (gameId != null && mounted) await _openGame(gameId);
       ref.invalidate(gameHistoryProvider);
@@ -76,6 +77,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               switch (value) {
                 case 'camera':
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const CameraModeScreen()));
+                case 'board_theme':
+                  await showBoardThemePicker(context);
                 case 'server':
                   await showServerSettings(context);
                   ref.invalidate(gameHistoryProvider);
@@ -85,6 +88,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             },
             itemBuilder: (_) => [
               const PopupMenuItem(value: 'camera', child: ListTile(leading: Icon(Icons.photo_camera), title: Text('Camera mode (phone A)'))),
+              const PopupMenuItem(value: 'board_theme', child: ListTile(leading: Icon(Icons.palette), title: Text('Board theme'))),
               const PopupMenuItem(value: 'server', child: ListTile(leading: Icon(Icons.settings_ethernet), title: Text('Server settings'))),
               PopupMenuItem(value: 'logout', child: ListTile(leading: const Icon(Icons.logout), title: Text(logoutLabel(user)))),
             ],

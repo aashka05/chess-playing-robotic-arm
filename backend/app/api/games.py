@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
@@ -7,6 +9,9 @@ from app.core.config import get_settings
 from app.models import Game, Move, User
 from app.models.enums import Role
 from app.schemas.game import DebugMoveRequest, GameDetail, GameSummary, StartGameRequest
+from app.services.game_rules import replay
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/games", tags=["games"])
 
@@ -56,7 +61,21 @@ async def get_game(game_id: int, user: CurrentUser, db: DB) -> GameDetail:
         raise HTTPException(404, "Game not found")
     detail = GameDetail.model_validate(game)
     owner = await db.get(User, game.user_id)
-    return detail.model_copy(update={"username": owner.username if owner else None, "move_count": len(game.moves)})
+    return detail.model_copy(update={
+        "username": owner.username if owner else None,
+        "move_count": len(game.moves),
+        "moves": _replayed_moves(detail),
+    })
+
+
+def _replayed_moves(detail: GameDetail) -> list:
+    """Rebuild each ply's SAN and position by replaying the moves with python-chess."""
+    try:
+        positions = replay(detail.initial_fen, [m.uci for m in detail.moves])
+    except ValueError:
+        log.warning("Game %s does not replay cleanly; using the stored positions", detail.game_id, exc_info=True)
+        return detail.moves
+    return [m.model_copy(update={"move": san, "fen_after": fen}) for m, (san, fen) in zip(detail.moves, positions)]
 
 
 @router.get("/{game_id}/live")
