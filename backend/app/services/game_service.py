@@ -370,7 +370,7 @@ class GameService:
         s.message = f"Robot plays {record.san}"
         self._broadcast_state(s)
 
-        arm = await self.arm.execute(s.game_id, record.move_id, board_before, move)
+        arm = await self.arm.execute(s.game_id, record.move_id, board_before, move, s.robot_color)
         if s.sm.is_over:
             return
         if not arm.success or arm.manual is not None:

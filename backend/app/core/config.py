@@ -33,8 +33,8 @@ class Settings(BaseSettings):
     detection_min_confidence: float = 0.6
     camera_capture_timeout_sec: float = 20.0
 
-    arm_mode: Literal["mock", "serial"] = "mock"
-    arm_serial_port: str = "/dev/cu.usbserial-2130"
+    arm_mode: Literal["mock", "serial"] = "serial"
+    arm_serial_port: str = "/dev/cu.usbserial-130"
     arm_baud_rate: int = 115200
     arm_command_timeout_sec: float = 30.0
     arm_angles_path: Path = PROJECT_ROOT / "controller" / "angles_dict.json"

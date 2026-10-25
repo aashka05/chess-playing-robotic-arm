@@ -9,10 +9,11 @@ import 'fen.dart';
 /// one chess symbol with an emoji form, which ignores the text colour.
 const pieceFontFamily = 'ChessPieces';
 const _glyphs = {'k': '♚', 'q': '♛', 'r': '♜', 'b': '♝', 'n': '♞', 'p': '♟'};
+const _vs15 = '\uFE0E';
 
 /// FEN symbol -> glyph to draw and its colour (uppercase = white).
 ({String glyph, bool white}) pieceGlyph(String symbol) => (
-      glyph: _glyphs[symbol.toLowerCase()] ?? '?',
+      glyph: '${_glyphs[symbol.toLowerCase()] ?? '?'}$_vs15',
       white: symbol == symbol.toUpperCase(),
     );
 

@@ -64,8 +64,8 @@ void main() {
       home: Scaffold(body: SizedBox(width: 400, child: ChessBoard(fen: startFen, highlights: {'e2': Colors.red}))),
     ));
     // Each piece is drawn twice (outline + fill).
-    expect(find.text('♚'), findsNWidgets(4));
-    expect(find.text('♟'), findsNWidgets(32));
+    expect(find.text(pieceGlyph('k').glyph), findsNWidgets(4));
+    expect(find.text(pieceGlyph('p').glyph), findsNWidgets(32));
   });
 
   test('piece colours follow FEN case', () {
@@ -75,7 +75,8 @@ void main() {
       // Same glyph for both colours; pawns have no special case.
       expect(pieceGlyph(s).glyph, pieceGlyph(s.toLowerCase()).glyph);
     }
-    expect(pieceGlyph('P').glyph, '♟');
+    // The pawn glyph ends with VS15 (text-presentation selector).
+    expect(pieceGlyph('P').glyph, '♟︎');
     expect(pieceName('P'), 'white pawn');
     expect(pieceName('p'), 'black pawn');
   });
@@ -85,13 +86,15 @@ void main() {
       home: Scaffold(body: SizedBox(width: 400, child: ChessBoard(fen: startFen))),
     ));
     // The fill layer is the Text with a plain colour (the outline uses a foreground Paint).
+    final pawnGlyph = pieceGlyph('p').glyph;
+    final kingGlyph = pieceGlyph('k').glyph;
     Iterable<Color?> fills(String glyph) => tester
         .widgetList<Text>(find.text(glyph))
         .where((t) => t.style?.foreground == null)
         .map((t) => t.style?.color);
-    expect(fills('♟').where((c) => c == Colors.white).length, 8);
-    expect(fills('♟').where((c) => c == Colors.black).length, 8);
-    expect(fills('♚'), unorderedEquals([Colors.white, Colors.black]));
+    expect(fills(pawnGlyph).where((c) => c == Colors.white).length, 8);
+    expect(fills(pawnGlyph).where((c) => c == Colors.black).length, 8);
+    expect(fills(kingGlyph), unorderedEquals([Colors.white, Colors.black]));
     // Every piece, pawns included, uses the bundled piece font.
     final fontTexts = tester.widgetList<Text>(find.byType(Text)).where((t) => t.style?.fontFamily == pieceFontFamily);
     expect(fontTexts.length, 64);

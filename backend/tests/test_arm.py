@@ -3,7 +3,7 @@ import json
 import chess
 import pytest
 
-from controller.angles import AngleMap, build_seq_command, mirror_square
+from controller.angles import AngleMap, build_move_commands, mirror_square
 from controller.driver import MockArmDriver
 from controller.planner import GRAVEYARD, ArmOp, plan_move
 from app.services.arm_service import ArmService
@@ -52,14 +52,27 @@ def test_promotion_with_capture_needs_manual_piece():
     assert black.manual.piece == "n"
 
 
-def test_mirror_and_seq_command():
+def test_mirror_and_m_commands():
     assert mirror_square("a1") == "h8" and mirror_square("e2") == "d7"
-    amap = AngleMap({"h8": [10, 20, 30, 40]})
-    angles = amap.arm_angles("a1")
-    # JSON order [m0, m3, m2, m1] -> servo order, wrist roll fixed at 180
-    assert angles == [10.0, 40.0, 30.0, 20.0, 180.0]
-    assert build_seq_command(ArmOp("pick", "a1", "p"), angles) == "SEQ,70.0,10.0,40.0,30.0,20.0,180.0,88.0"
-    assert build_seq_command(ArmOp("place", "a1", "p"), angles) == "SEQ,-1.0,10.0,40.0,30.0,20.0,180.0,70.0"
+    # When robot plays BLACK, use mirrored keys
+    amap_black = AngleMap({"h8": [10, 20, 30, 40]}, chess.BLACK)
+    angles = amap_black.arm_angles("a1")
+    # JSON order [m0, m3, m2, m1] -> servo order, wrist roll = base - 5
+    assert angles == [10.0, 40.0, 30.0, 20.0, 5.0]
+
+    # When robot plays WHITE, use direct keys (no mirroring)
+    amap_white = AngleMap({"a1": [10, 20, 30, 40]}, chess.WHITE)
+    assert amap_white.arm_angles("a1") == [10.0, 40.0, 30.0, 20.0, 5.0]
+
+    pick_cmds = build_move_commands(ArmOp("pick", "a1", "p"), angles)
+    assert len(pick_cmds) == 3  # open gripper, move arm, close gripper
+    assert pick_cmds[0] == "M 20 5:70"  # open gripper
+    assert pick_cmds[1] == "M 15 0:10 1:40 2:30 3:20 4:5"  # move arm
+    assert pick_cmds[2] == "M 20 5:88"  # close gripper
+    place_cmds = build_move_commands(ArmOp("place", "a1", "p"), angles)
+    assert len(place_cmds) == 2  # move arm, open gripper
+    assert place_cmds[0] == "M 15 0:10 1:40 2:30 3:20 4:5"  # move arm
+    assert place_cmds[1] == "M 20 5:70"  # release piece
 
 
 class LogRepo:
@@ -71,13 +84,16 @@ class LogRepo:
 
 
 async def test_arm_service_logs_every_motor(tmp_path):
+    # Robot plays WHITE → no mirroring, keys used directly
     path = tmp_path / "angles.json"
-    path.write_text(json.dumps({mirror_square(s): [1, 2, 3, 4] for s in ["g1", "f3"]}))
+    path.write_text(json.dumps({s: [1, 2, 3, 4] for s in ["g1", "f3"]}))
     repo = LogRepo()
     svc = ArmService(MockArmDriver(0), path, repo, strict=True)
-    result = await svc.execute(1, 7, chess.Board(), chess.Move.from_uci("g1f3"))
-    assert result.success and result.commands_sent == 2
-    assert len(repo.rows) == 12  # 2 commands x (5 servos + gripper)
+    result = await svc.execute(1, 7, chess.Board(), chess.Move.from_uci("g1f3"), chess.WHITE)
+    assert result.success
+    # pick=3 M-cmds + home=1 + place=2 M-cmds + home=1 = 7
+    assert result.commands_sent == 7
+    assert len(repo.rows) == 12  # 2 ops x (5 servos + gripper)
     assert {r.motor_id for r in repo.rows} == {0, 1, 2, 3, 4, 5}
     assert all(r.move_id == 7 and r.status == "success" for r in repo.rows)
 
